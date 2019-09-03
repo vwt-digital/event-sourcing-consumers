@@ -11,6 +11,7 @@ from dbprocessor import DBProcessor
 
 import config
 
+parser = DBProcessor()
 verification_token = os.environ['PUBSUB_VERIFICATION_TOKEN']
 domain_token = config.DOMAIN_VALIDATION_TOKEN
 
@@ -55,7 +56,6 @@ def topic_to_datastore(request):
         subscription = envelope['subscription'].split('/')[-1]
         logging.info(f'Message received from {subscription} [{payload}]')
 
-        parser = DBProcessor()
         parser.process(json.loads(payload))
 
     except Exception as e:
