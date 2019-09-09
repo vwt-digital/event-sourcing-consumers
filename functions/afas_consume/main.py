@@ -35,6 +35,7 @@ def topic_to_datastore(request):
     try:
         bearer_token = request.headers.get('Authorization')
         token = bearer_token.split(' ')[1]
+        logging.info(f'Received token [{token}]')
 
         claim = id_token.verify_oauth2_token(token, requests.Request(),
                                              audience='vwt-digital')
