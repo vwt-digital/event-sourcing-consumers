@@ -21,7 +21,7 @@ class DBProcessor(object):
         self.client.put(entity)
 
     def identity(self, payload):
-        return self.meta['entity_name'], self.meta['id_property']
+        return self.meta['entity_name'], payload[self.meta['id_property']]
 
     @staticmethod
     def populate_from_payload(entity, payload):
