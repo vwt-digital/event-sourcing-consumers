@@ -31,12 +31,12 @@ def get_authentication_secret(base64_string):
     return decrypt_response.plaintext.decode("utf-8").replace('\n', '')
 
 
-sacn = 'mysql+pymysql://{}:{}@/{}-db?unix_socket=/cloudsql/{}:europe-west1:{}'.format(
+sacn = 'mysql+pymysql://{}:{}@/{}?unix_socket=/cloudsql/{}:europe-west1:{}'.format(
     config.database['db_user'],
     get_authentication_secret(config.database['enc_password']),
+    config.database['db_name'],
     config.database['project_id'],
-    config.database['project_id'],
-    config.database['db_name']
+    config.database['instance_id']
 )
 
 engine = create_engine(sacn, pool_timeout=config.TIMEOUT)
