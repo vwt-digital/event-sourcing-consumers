@@ -183,7 +183,7 @@ def insert_Hierarchy(data_dict, subscription, session, sourceKey='sourceKey', ts
     sourceKey = data_dict.get(sourceKey)
 
     # Regex to find ChangePoint and Connect numbers
-    con_opdracht_find = re.compile(r'(1000\d{6})')
+    con_opdracht_find = re.compile(r'(100\d{7})')
     con_opdrachtH_find = re.compile(r'(H\d{8})')
 
     def get_bpnr_regex(cell):
