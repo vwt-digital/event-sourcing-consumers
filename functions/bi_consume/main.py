@@ -20,7 +20,7 @@ def handler(request):
         collection = config.firestore[subscription]['collection']
         keys = config.firestore[subscription]['keys']
         dt = parse(envelope['message']['publishTime'])
-        ts = dt.timestamp()
+        ts = int(dt.timestamp())
         logging.info(f'Read message from subscription {subscription}')
     except Exception as e:
         logging.error(f'Extracting of data failed: {e}')
