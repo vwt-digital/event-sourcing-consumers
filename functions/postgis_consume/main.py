@@ -1,37 +1,19 @@
-import inspect
 import logging
 import json
 import base64
-import os
+from flask import Request
 
-from google.auth.transport import requests
+# from dbprocessor import DBProcessor
 
-from dbprocessor import DBProcessor
+import config  # noqa: F401
 
-import config
-
-parser = DBProcessor()
-verification_token = os.environ['PUBSUB_VERIFICATION_TOKEN']
-domain_token = config.DOMAIN_VALIDATION_TOKEN
+# parser = DBProcessor()
 
 logging.basicConfig(level=logging.INFO)
 
 
-def topic_to_datastore(request):
-    if request.method == 'GET':
-        return '''
-             <html>
-                 <head>
-                     <meta name="google-site-verification" content="{token}" />
-                 </head>
-                 <body>
-                 </body>
-             </html>
-         '''.format(token=domain_token)
-
-    if request.args.get('token', '') != verification_token:
-        return 'Invalid request', 400
-
+# First json to postgis, then postgis to database
+def json_to_database(request):
     # Extract data from request
     envelope = json.loads(request.data.decode('utf-8'))
     payload = base64.b64decode(envelope['message']['data'])
@@ -41,7 +23,7 @@ def topic_to_datastore(request):
         subscription = envelope['subscription'].split('/')[-1]
         logging.info(f'Message received from {subscription} [{payload}]')
 
-        parser.process(json.loads(payload))
+        # parser.process(json.loads(payload))
 
     except Exception as e:
         logging.info('Extract of subscription failed')
@@ -55,3 +37,8 @@ def topic_to_datastore(request):
 
 if __name__ == '__main__':
     logging.info("Hallo")
+    environ = {}
+    biepboep = Request(environ)
+    data = base64.b64encode(json.dumps({"name": "John", "age": 30, "city": "New York"}).encode('utf-8'))
+    biepboep.data = json.dumps({"message": {"data": data.decode('utf-8')}, "subscription": "hoi"}).encode('utf-8')
+    json_to_database(biepboep)

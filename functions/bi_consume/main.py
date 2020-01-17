@@ -9,6 +9,8 @@ import hashlib
 from dateutil.parser import parse
 from google.cloud import firestore_v1
 
+db = firestore_v1.Client()
+
 
 def handler(request):
 
@@ -38,7 +40,6 @@ def fs_write(coll, keys, ts, data):
     unique_id = hashlib.md5(unique_key.encode()).hexdigest()
     version_id = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(12))
 
-    db = firestore_v1.Client()
     collection = db.collection(coll)
     ref = collection.document(unique_id)
     doc = ref.get()
