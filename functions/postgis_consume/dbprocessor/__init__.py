@@ -11,9 +11,8 @@ class DBProcessor(object):
         self.meta = config.DB_PROPERTIES[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
         # Get environment variables given to the function
         self.sql_pass = os.environ.get("_SQL_PASS")
-        self.db_name = os.environ.get("_DB_NAME")
         self.db_user = os.environ.get("_DB_USER")
-        self.host = '/cloudsql/' + self.db_name
+        self.host = '/cloudsql/{}'.format(os.environ.get("INSTANCE_CONNECTION_NAME"))
         pass
 
     def process(self, payload):
@@ -46,7 +45,7 @@ class DBProcessor(object):
         outProj = Proj('epsg:4326')
         lon, lat = transform(inProj, outProj, x_coordinate, y_coordinate)
 
-        # TODO: Only points are added now, but what if we want other geometry? Should get more info from the JSON
+        # Only points are added now, but what if we want other geometry? Then we should get more info from the JSON
 
         # Point in EPSG 4326, aka longitude and latitude
         return "ST_SetSRID(ST_MakePoint({},{}),4326)".format(lon, lat)
