@@ -2,8 +2,8 @@ import config
 # import consumerConfig as config
 import os
 import psycopg2
-import osgeo.ogr as ogr
-import osgeo.osr as osr
+from pyproj import Proj
+from pyproj import transform
 
 
 class DBProcessor(object):
@@ -42,27 +42,11 @@ class DBProcessor(object):
                 connection.close()
 
     def coordinatesToPostgis(self, x_coordinate, y_coordinate):
-        # Spatial Reference System
-        inputEPSG = 3857
-        outputEPSG = 4326
-
-        # create a geometry from coordinates
-        point = ogr.Geometry(ogr.wkbPoint)
-        point.AddPoint(x_coordinate, y_coordinate)
-
-        # create coordinate transformation
-        inSpatialRef = osr.SpatialReference()
-        inSpatialRef.ImportFromEPSG(inputEPSG)
-
-        outSpatialRef = osr.SpatialReference()
-        outSpatialRef.ImportFromEPSG(outputEPSG)
-
-        coordTransform = osr.CoordinateTransformation(inSpatialRef, outSpatialRef)
-
-        # transform point
-        point.Transform(coordTransform)
+        inProj = Proj('epsg:3857')
+        outProj = Proj('epsg:4326')
+        lon, lat = transform(inProj, outProj, x_coordinate, y_coordinate)
 
         # TODO: Only points are added now, but what if we want other geometry? Should get more info from the JSON
 
         # Point in EPSG 4326, aka longitude and latitude
-        return "ST_SetSRID(ST_MakePoint({},{}),4326)".format(point.GetX(), point.GetY())
+        return "ST_SetSRID(ST_MakePoint({},{}),4326)".format(lon, lat)
