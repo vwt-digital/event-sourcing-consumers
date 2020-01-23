@@ -2,8 +2,8 @@ import config
 # import consumerConfig as config
 import os
 import psycopg2
-import ogr
-import osr
+import osgeo.ogr as ogr
+import osgeo.osr as osr
 
 
 class DBProcessor(object):
