@@ -2,12 +2,9 @@ import logging
 import json
 import base64
 from flask import Request
+from dbprocessor import DBProcessor
 
-# from dbprocessor import DBProcessor
-
-import config  # noqa: F401
-
-# parser = DBProcessor()
+parser = DBProcessor()
 
 logging.basicConfig(level=logging.INFO)
 
@@ -23,7 +20,7 @@ def json_to_database(request):
         subscription = envelope['subscription'].split('/')[-1]
         logging.info(f'Message received from {subscription} [{payload}]')
 
-        # parser.process(json.loads(payload))
+        parser.process(json.loads(payload))
 
     except Exception as e:
         logging.info('Extract of subscription failed')

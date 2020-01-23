@@ -1,40 +1,68 @@
-from google.cloud import datastore
 import config
+# import consumerConfig as config
 import os
-import logging
+import psycopg2
+import ogr
+import osr
+
 
 class DBProcessor(object):
     def __init__(self):
-        self.client = datastore.Client()
-        self.meta = config.POSTGIS_DB_PROCESSOR[os.environ.get('DATA_SELECTOR', 'Required parameter is missed')]
+        self.meta = config.DB_PROPERTIES[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
+        # Get environment variables given to the function
+        self.sql_pass = os.environ.get("_SQL_PASS")
+        self.db_name = os.environ.get("_DB_NAME")
+        self.db_user = os.environ.get("_DB_USER")
+        self.host = '/cloudsql/' + self.db_name
         pass
 
     def process(self, payload):
-        if 'id_property' in self.meta and self.meta['id_property'] in payload:
-            kind, key = self.identity(payload)
-            entity_key = self.client.key(kind, key)
-            entity = self.client.get(entity_key)
-            if not entity:
-                entity = datastore.Entity(key=entity_key)
-        elif 'filter_property' in self.meta and self.meta['filter_property'] in payload:
-            # get entity_key from filter property
-            query = self.client.query(kind=self.meta['entity_name'])
-            query.add_filter(self.meta['filter_property'], '=', payload[self.meta['filter_property']])
-            query_results = list(query.fetch(limit=1))
-            entity = query_results[0] if query_results else None
-        else:
-            logging.error('Received payload without matching id_property or filter_property')
-            entity = None
+        try:
+            connection = psycopg2.connect(user=self.db_user, password=self.sql_pass, host=self.host)
+            cursor = connection.cursor()
+            # TODO: select 1 from {entity_table} where {id_property} = {id_prop_value}
+            # TODO: if id already in entity_table:
+            #    add_values = '''UPDATE {} SET location=postgis.createpoint({}, {}) WHERE {} = {};'''
+            # .format(self.meta['entity_name'], key, value, self.meta['id_property'], payload[self.meta['id_property']])
+            #    cursor.execute(add_values)
+            #    connection.commit()
+            # TODO: else:
+            #    sql_insert_statement =
+            # 'INSERT INTO {}({id_property}, location) VALUES({id_property_value}, postgis.createpoint({},{}}))'
+            lonlat = self.coordinatesToPostgis(payload[self.meta['x_coordinate']], payload[self.meta['y_coordinate']])
+            add_values = '''UPDATE {} SET {} = {} WHERE {} = {};'''.format(self.meta['entity_name'], self.meta['geometry'], lonlat, self.meta['id_property'], payload[self.meta['id_property']])  # noqa: E501
+            cursor.execute(add_values)
+            connection.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            print("Error while updating PostgreSQL table", error)
+        finally:
+            # closing database connection.
+            if(connection):
+                cursor.close()
+                connection.close()
 
-        if entity is not None:
-            self.populate_from_payload(entity, payload)
-            self.client.put(entity)
+    def coordinatesToPostgis(self, x_coordinate, y_coordinate):
+        # Spatial Reference System
+        inputEPSG = 3857
+        outputEPSG = 4326
 
-    def identity(self, payload):
-        return self.meta['entity_name'], payload[self.meta['id_property']]
+        # create a geometry from coordinates
+        point = ogr.Geometry(ogr.wkbPoint)
+        point.AddPoint(x_coordinate, y_coordinate)
 
-    @staticmethod
-    def populate_from_payload(entity, payload):
-        for name in payload.keys():
-            value = payload[name]
-            entity[name] = value
+        # create coordinate transformation
+        inSpatialRef = osr.SpatialReference()
+        inSpatialRef.ImportFromEPSG(inputEPSG)
+
+        outSpatialRef = osr.SpatialReference()
+        outSpatialRef.ImportFromEPSG(outputEPSG)
+
+        coordTransform = osr.CoordinateTransformation(inSpatialRef, outSpatialRef)
+
+        # transform point
+        point.Transform(coordTransform)
+
+        # TODO: Only points are added now, but what if we want other geometry? Should get more info from the JSON
+
+        # Point in EPSG 4326, aka longitude and latitude
+        return "ST_SetSRID(ST_MakePoint({},{}),4326)".format(point.GetX(), point.GetY())
