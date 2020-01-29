@@ -1,9 +1,6 @@
 import config
-# import consumerConfig as config
 import os
 import psycopg2
-from pyproj import Proj
-from pyproj import transform
 
 
 class DBProcessor(object):
@@ -32,7 +29,7 @@ class DBProcessor(object):
             cursor = connection.cursor()
             lonlat = self.coordinatesToPostgis(payload[self.meta['x_coordinate']], payload[self.meta['y_coordinate']])
             # Do PostgreSQL UPSERT
-            upsert = f"INSERT INTO {self.meta['entity_name']} ({self.meta['id_property']}, {self.meta['geometry']}) VALUES ('{payload[self.meta['id_property']]}', {lonlat}) ON CONFLICT ({self.meta['id_property']}) DO UPDATE SET {self.meta['geometry']} = {lonlat};"
+            upsert = f"INSERT INTO {self.meta['entity_name']} ({self.meta['id_property']}, {self.meta['geometry']}) VALUES ('{payload[self.meta['id_property']]}', {lonlat}) ON CONFLICT ({self.meta['id_property']}) DO UPDATE SET {self.meta['geometry']} = {lonlat};"  # noqa: E501
             cursor.execute(upsert)
             connection.commit()
         except (Exception, psycopg2.DatabaseError) as error:
