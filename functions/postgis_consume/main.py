@@ -1,7 +1,6 @@
 import logging
 import json
 import base64
-from flask import Request
 from dbprocessor import DBProcessor
 
 parser = DBProcessor()
