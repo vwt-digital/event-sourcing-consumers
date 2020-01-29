@@ -1,6 +1,7 @@
 import config
 import os
 import psycopg2
+import logging
 
 
 class DBProcessor(object):
@@ -24,16 +25,21 @@ class DBProcessor(object):
             # TODO: else:
             #    sql_insert_statement =
             # 'INSERT INTO {}({id_property}, location) VALUES({id_property_value}, postgis.createpoint({},{}}))'
+            selector_data = payload[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
 
             connection = psycopg2.connect(user=self.db_user, password=self.sql_pass, host=self.host, dbname=self.db_name)
             cursor = connection.cursor()
-            lonlat = self.coordinatesToPostgis(payload[self.meta['x_coordinate']], payload[self.meta['y_coordinate']])
+            lonlat = self.coordinatesToPostgis(selector_data[self.meta['x_coordinate']], selector_data[self.meta['y_coordinate']])
             # Do PostgreSQL UPSERT
-            upsert = f"INSERT INTO {self.meta['entity_name']} ({self.meta['id_property']}, {self.meta['geometry']}) VALUES ('{payload[self.meta['id_property']]}', {lonlat}) ON CONFLICT ({self.meta['id_property']}) DO UPDATE SET {self.meta['geometry']} = {lonlat};"  # noqa: E501
+            upsert = f"INSERT INTO {self.meta['entity_name']} " + \
+                f"({self.meta['id_property']}, {self.meta['geometry']}) " + \
+                f"VALUES ('{selector_data[self.meta['id_property']]}', {lonlat}) " + \
+                f"ON CONFLICT ({self.meta['id_property']}) DO UPDATE SET {self.meta['geometry']} = {lonlat};"
+            print(upsert)
             cursor.execute(upsert)
             connection.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            print("Error while updating PostgreSQL table", error)
+        except (Exception, psycopg2.DatabaseError):
+            logging.exception("Error within the connection to the database")
         finally:
             # closing database connection.
             if(connection):
