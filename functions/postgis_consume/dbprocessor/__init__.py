@@ -1,7 +1,12 @@
 import config
 import os
 import psycopg2
-import logging
+from sqlalchemy import create_engine
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import MetaData
+from shapely.geometry import Point
+import geoalchemy2
+from pyproj import Proj, transform
 
 
 class DBProcessor(object):
@@ -10,44 +15,59 @@ class DBProcessor(object):
         # Get environment variables given to the function
         self.sql_pass = os.environ.get("_SQL_PASS")
         self.db_user = os.environ.get("_DB_USER")
-        self.host = '/cloudsql/{}'.format(os.environ.get("INSTANCE_CONNECTION_NAME"))
+        self.host = f"/cloudsql/{os.environ.get('INSTANCE_CONNECTION_NAME')}"
         self.db_name = os.environ.get("_DB_NAME")
         pass
 
     def process(self, payload):
-        try:
-            # TODO: select 1 from {entity_table} where {id_property} = {id_prop_value}
-            # TODO: if id already in entity_table:
-            #    add_values = '''UPDATE {} SET location=postgis.createpoint({}, {}) WHERE {} = {};'''
-            # .format(self.meta['entity_name'], key, value, self.meta['id_property'], payload[self.meta['id_property']])
-            #    cursor.execute(add_values)
-            #    connection.commit()
-            # TODO: else:
-            #    sql_insert_statement =
-            # 'INSERT INTO {}({id_property}, location) VALUES({id_property_value}, postgis.createpoint({},{}}))'
-            selector_data = payload[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
+        selector_data = payload[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
+        # If both x and y coordinate in request put request in DB, otherwise do nothing
+        if self.meta['x_coordinate'] in selector_data and self.meta['y_coordinate'] in selector_data:
+            # Only if x and y are not 0
+            if selector_data[self.meta['x_coordinate']] != 0 and selector_data[self.meta['y_coordinate']] != 0:
+                try:
+                    engine = create_engine('postgresql+psycopg2://', creator=self.getconn)
+                    connection = engine.connect()
 
-            connection = psycopg2.connect(user=self.db_user, password=self.sql_pass, host=self.host, dbname=self.db_name)
-            cursor = connection.cursor()
-            lonlat = self.coordinatesToPostgis(selector_data[self.meta['x_coordinate']], selector_data[self.meta['y_coordinate']])
-            # Do PostgreSQL UPSERT
-            upsert = f"INSERT INTO {self.meta['entity_name']} " + \
-                f"({self.meta['id_property']}, {self.meta['geometry']}) " + \
-                f"VALUES ('{selector_data[self.meta['id_property']]}', {lonlat}) " + \
-                f"ON CONFLICT ({self.meta['id_property']}) DO UPDATE SET {self.meta['geometry']} = {lonlat};"
-            print(upsert)
-            cursor.execute(upsert)
-            connection.commit()
-        except (Exception, psycopg2.DatabaseError):
-            logging.exception("Error within the connection to the database")
-        finally:
-            # closing database connection.
-            if(connection):
-                cursor.close()
-                connection.close()
+                    lonlat = self.coordinatesToPostgis(selector_data[self.meta['x_coordinate']], selector_data[self.meta['y_coordinate']])
+
+                    meta_data = MetaData(bind=engine, reflect=True)
+                    workflow_projects = meta_data.tables[self.meta['entity_name']]
+
+                    # Do PostgreSQL UPSERT
+                    upsert = insert(workflow_projects).values([
+                        {self.meta.get("id_property"): selector_data[self.meta.get("id_property")], self.meta.get("geometry"): lonlat}
+                    ]
+                    )
+                    geom_params = {}
+                    geom_params[self.meta['geometry']] = lonlat
+                    upsert = upsert.on_conflict_do_update(
+                        index_elements=[self.meta['id_property']],
+                        set_=geom_params
+                    )
+                    connection.execute(upsert)
+                finally:
+                    # closing database connection.
+                    connection.close()
 
     def coordinatesToPostgis(self, x_coordinate, y_coordinate):
         # Only points are added now, but what if we want other geometry? Then we should get more info from the JSON
 
+        # Transform from projected (coordinate) system to latitude and longitude system
+        inProj = Proj("epsg:3857")
+        outProj = Proj("epsg:4326")
+        lon, lat = transform(inProj, outProj, float(x_coordinate), float(y_coordinate))
+
+        geometry_dict = {}
+        geometry_dict["geom"] = f"POINT({lon},{lat})"
+        geometry_dict["srid"] = 4326
+
+        point = geoalchemy2.shape.from_shape(Point(lon, lat), srid=4326)
+
         # Point in EPSG 4326, aka longitude and latitude
-        return "ST_Transform(ST_SetSRID(ST_MakePoint({},{}),3857),4326)".format(x_coordinate, y_coordinate)
+        # Returns the same as when you do: "ST_Transform(ST_SetSRID(ST_MakePoint({x_coordinate},{y_coordinate}),3857),4326)"
+        return point
+
+    def getconn(self):
+        c = psycopg2.connect(user=self.db_user, password=self.sql_pass, host=self.host, dbname=self.db_name)
+        return c
