@@ -17,38 +17,44 @@ class DBProcessor(object):
         self.db_user = os.environ.get("_DB_USER")
         self.host = f"/cloudsql/{os.environ.get('INSTANCE_CONNECTION_NAME')}"
         self.db_name = os.environ.get("_DB_NAME")
+        self.engine = create_engine('postgresql+psycopg2://', creator=self.getconn)
+        self.connection = self.engine.connect()
         pass
 
     def process(self, payload):
         selector_data = payload[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
+
         # If both x and y coordinate in request put request in DB, otherwise do nothing
         if self.meta['x_coordinate'] in selector_data and self.meta['y_coordinate'] in selector_data:
             # Only if x and y are not 0
             if selector_data[self.meta['x_coordinate']] != 0 and selector_data[self.meta['y_coordinate']] != 0:
                 try:
-                    engine = create_engine('postgresql+psycopg2://', creator=self.getconn)
-                    connection = engine.connect()
-
-                    lonlat = self.coordinatesToPostgis(selector_data[self.meta['x_coordinate']], selector_data[self.meta['y_coordinate']])
-
-                    meta_data = MetaData(bind=engine, reflect=True)
+                    meta_data = MetaData(bind=self.engine, reflect=True)
                     workflow_projects = meta_data.tables[self.meta['entity_name']]
 
+                    add_vals_params = {}
+                    add_vals_params[self.meta.get("id_property")] = selector_data[self.meta.get("id_property")]
+                    params = {}
+
+                    # Add UPSERT params from config
+                    for key in self.meta.keys():
+                        if(key != "geometry" and key != "entity_name" and self.meta[key] in selector_data):
+                            params[self.meta[key]] = selector_data[self.meta.get(key)]
+
+                    # Add geometry
+                    lonlat = self.coordinatesToPostgis(selector_data[self.meta['x_coordinate']], selector_data[self.meta['y_coordinate']])
+                    params[self.meta['geometry']] = lonlat
+
                     # Do PostgreSQL UPSERT
-                    upsert = insert(workflow_projects).values([
-                        {self.meta.get("id_property"): selector_data[self.meta.get("id_property")], self.meta.get("geometry"): lonlat}
-                    ]
-                    )
-                    geom_params = {}
-                    geom_params[self.meta['geometry']] = lonlat
+                    upsert = insert(workflow_projects).values([params])
                     upsert = upsert.on_conflict_do_update(
                         index_elements=[self.meta['id_property']],
-                        set_=geom_params
+                        set_=params
                     )
-                    connection.execute(upsert)
+                    self.connection.execute(upsert)
                 finally:
                     # closing database connection.
-                    connection.close()
+                    self.connection.close()
 
     def coordinatesToPostgis(self, x_coordinate, y_coordinate):
         # Only points are added now, but what if we want other geometry? Then we should get more info from the JSON
