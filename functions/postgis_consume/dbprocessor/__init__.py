@@ -6,7 +6,6 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import MetaData
 from shapely.geometry import Point
 import geoalchemy2
-from pyproj import Proj, transform
 
 
 class DBProcessor(object):
@@ -61,17 +60,7 @@ class DBProcessor(object):
 
     def coordinatesToPostgis(self, x_coordinate, y_coordinate):
         # Only points are added now, but what if we want other geometry? Then we should get more info from the JSON
-
-        # Transform from projected (coordinate) system to latitude and longitude system
-        inProj = Proj("epsg:3857")
-        outProj = Proj("epsg:4326")
-        lon, lat = transform(inProj, outProj, float(x_coordinate), float(y_coordinate))
-
-        geometry_dict = {}
-        geometry_dict["geom"] = f"POINT({lon},{lat})"
-        geometry_dict["srid"] = 4326
-
-        point = geoalchemy2.shape.from_shape(Point(lon, lat), srid=4326)
+        point = geoalchemy2.shape.from_shape(Point(float(y_coordinate), float(x_coordinate)), srid=4326)
 
         # Point in EPSG 4326, aka longitude and latitude
         # Returns the same as when you do: "ST_Transform(ST_SetSRID(ST_MakePoint({x_coordinate},{y_coordinate}),3857),4326)"
