@@ -1,6 +1,8 @@
 import config
 import os
-import psycopg2
+# import psycopg2
+import pg8000  # noqa: F401
+from sqlalchemy import engine
 from sqlalchemy import create_engine
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import MetaData
@@ -15,9 +17,21 @@ class DBProcessor(object):
         # Get environment variables given to the function
         self.sql_pass = os.environ.get("_SQL_PASS")
         self.db_user = os.environ.get("_DB_USER")
-        self.host = f"/cloudsql/{os.environ.get('INSTANCE_CONNECTION_NAME')}"
+        self.instance_connection_name = os.environ.get('INSTANCE_CONNECTION_NAME')
+        self.host = f"/cloudsql/{self.instance_connection_name}"
         self.db_name = os.environ.get("_DB_NAME")
-        self.engine = create_engine('postgresql+psycopg2://', creator=self.getconn)
+        # self.engine = create_engine('postgresql+psycopg2://', creator=self.getconn)
+        self.engine = create_engine(
+            engine.url.URL(
+                drivername='postgres+pg8000',
+                username=self.db_user,
+                password=self.sql_pass,
+                database=self.db_name,
+                query={
+                    'unix_sock': '/cloudsql/{}/.s.PGSQL.5432'.format(self.instance_connection_name)
+                }
+            )
+        )
         self.connection = self.engine.connect()
         pass
 
@@ -74,6 +88,6 @@ class DBProcessor(object):
         # Returns the same as when you do: "ST_Transform(ST_SetSRID(ST_MakePoint({x_coordinate},{y_coordinate}),3857),4326)"
         return point
 
-    def getconn(self):
-        c = psycopg2.connect(user=self.db_user, password=self.sql_pass, host=self.host, dbname=self.db_name)
-        return c
+    # def getconn(self):
+    #     c = psycopg2.connect(user=self.db_user, password=self.sql_pass, host=self.host, dbname=self.db_name)
+    #     return c
