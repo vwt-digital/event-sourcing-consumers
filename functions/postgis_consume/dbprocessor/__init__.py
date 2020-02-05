@@ -1,8 +1,6 @@
 import config
 import os
 import psycopg2
-# import pg8000  # noqa: F401
-# from sqlalchemy import engine
 from sqlalchemy import create_engine
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import MetaData
@@ -21,17 +19,6 @@ class DBProcessor(object):
         self.host = f"/cloudsql/{self.instance_connection_name}"
         self.db_name = os.environ.get("_DB_NAME")
         self.engine = create_engine('postgresql+psycopg2://', creator=self.getconn)
-        # self.engine = create_engine(
-        #     engine.url.URL(
-        #         drivername='postgres+pg8000',
-        #         username=self.db_user,
-        #         password=self.sql_pass,
-        #         database=self.db_name,
-        #         query={
-        #             'unix_sock': '/cloudsql/{}/.s.PGSQL.5432'.format(self.instance_connection_name)
-        #         }
-        #     )
-        # )
         self.connection = self.engine.connect()
         pass
 
