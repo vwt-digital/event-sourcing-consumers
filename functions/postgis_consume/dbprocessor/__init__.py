@@ -1,40 +1,71 @@
-from google.cloud import datastore
 import config
 import os
-import logging
+import psycopg2
+from sqlalchemy import create_engine
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import MetaData
+from shapely.geometry import Point
+import geoalchemy2
+
 
 class DBProcessor(object):
     def __init__(self):
-        self.client = datastore.Client()
-        self.meta = config.POSTGIS_DB_PROCESSOR[os.environ.get('DATA_SELECTOR', 'Required parameter is missed')]
+        self.meta = config.DB_PROPERTIES[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
+        # Get environment variables given to the function
+        self.sql_pass = os.environ.get("_SQL_PASS")
+        self.db_user = os.environ.get("_DB_USER")
+        self.instance_connection_name = os.environ.get('INSTANCE_CONNECTION_NAME')
+        self.host = f"/cloudsql/{self.instance_connection_name}"
+        self.db_name = os.environ.get("_DB_NAME")
+        self.engine = create_engine('postgresql+psycopg2://', creator=self.getconn)
+        self.connection = self.engine.connect()
         pass
 
     def process(self, payload):
-        if 'id_property' in self.meta and self.meta['id_property'] in payload:
-            kind, key = self.identity(payload)
-            entity_key = self.client.key(kind, key)
-            entity = self.client.get(entity_key)
-            if not entity:
-                entity = datastore.Entity(key=entity_key)
-        elif 'filter_property' in self.meta and self.meta['filter_property'] in payload:
-            # get entity_key from filter property
-            query = self.client.query(kind=self.meta['entity_name'])
-            query.add_filter(self.meta['filter_property'], '=', payload[self.meta['filter_property']])
-            query_results = list(query.fetch(limit=1))
-            entity = query_results[0] if query_results else None
-        else:
-            logging.error('Received payload without matching id_property or filter_property')
-            entity = None
+        selector_data = payload[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
 
-        if entity is not None:
-            self.populate_from_payload(entity, payload)
-            self.client.put(entity)
+        # If both x and y coordinate in request put request in DB, otherwise do nothing
+        if self.meta['x_coordinate'] in selector_data and self.meta['y_coordinate'] in selector_data:
+            # Only if x and y are not 0
+            if selector_data[self.meta['x_coordinate']] != "0" and selector_data[self.meta['y_coordinate']] != "0":
+                try:
+                    meta_data = MetaData(bind=self.engine, reflect=True)
+                    workflow_projects = meta_data.tables[self.meta['entity_name']]
 
-    def identity(self, payload):
-        return self.meta['entity_name'], payload[self.meta['id_property']]
+                    add_vals_params = {}
+                    add_vals_params[self.meta.get("id_property")] = selector_data[self.meta.get("id_property")]
+                    params = {}
 
-    @staticmethod
-    def populate_from_payload(entity, payload):
-        for name in payload.keys():
-            value = payload[name]
-            entity[name] = value
+                    # Add UPSERT params from config
+                    for key in self.meta.keys():
+                        if(key != "geometry" and key != "entity_name" and self.meta[key] in selector_data):
+                            params[self.meta[key]] = selector_data[self.meta.get(key)]
+
+                    # Add geometry
+                    lonlat = self.coordinatesToPostgis(selector_data[self.meta['x_coordinate']], selector_data[self.meta['y_coordinate']])
+                    params[self.meta['geometry']] = lonlat
+
+                    # Do PostgreSQL UPSERT
+                    upsert = insert(workflow_projects).values([params])
+                    upsert = upsert.on_conflict_do_update(
+                        index_elements=[self.meta['id_property']],
+                        set_=params
+                    )
+                    self.connection.execute(upsert)
+                finally:
+                    # closing database connection.
+                    self.connection.close()
+            else:
+                print("x coordinate or y coordinate is 0, no upload")
+
+    def coordinatesToPostgis(self, x_coordinate, y_coordinate):
+        # Only points are added now, but what if we want other geometry? Then we should get more info from the JSON
+        point = geoalchemy2.shape.from_shape(Point(float(y_coordinate), float(x_coordinate)), srid=4326)
+
+        # Point in EPSG 4326, aka longitude and latitude
+        # Returns the same as when you do: "ST_Transform(ST_SetSRID(ST_MakePoint({x_coordinate},{y_coordinate}),3857),4326)"
+        return point
+
+    def getconn(self):
+        c = psycopg2.connect(user=self.db_user, password=self.sql_pass, host=self.host, dbname=self.db_name)
+        return c
