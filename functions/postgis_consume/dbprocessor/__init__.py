@@ -11,6 +11,7 @@ import geoalchemy2
 class DBProcessor(object):
     def __init__(self):
         self.meta = config.DB_PROPERTIES[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
+        self.attributes = config.DB_ATTRIBUTES
         # Get environment variables given to the function
         self.sql_pass = os.environ.get("_SQL_PASS")
         self.db_user = os.environ.get("_DB_USER")
@@ -19,7 +20,6 @@ class DBProcessor(object):
         self.db_name = os.environ.get("_DB_NAME")
         self.engine = create_engine('postgresql+psycopg2://', creator=self.getconn)
         self.connection = self.engine.connect()
-        pass
 
     def process(self, payload):
         selector_data = payload[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
@@ -32,14 +32,13 @@ class DBProcessor(object):
                     meta_data = MetaData(bind=self.engine, reflect=True)
                     workflow_projects = meta_data.tables[self.meta['entity_name']]
 
-                    add_vals_params = {}
-                    add_vals_params[self.meta.get("id_property")] = selector_data[self.meta.get("id_property")]
                     params = {}
+                    params[self.meta.get("id_property")] = selector_data[self.meta.get("id_property")]
 
                     # Add UPSERT params from config
-                    for key in self.meta.keys():
-                        if(key != "geometry" and key != "entity_name" and self.meta[key] in selector_data):
-                            params[self.meta[key]] = selector_data[self.meta.get(key)]
+                    for attribute in self.attributes:
+                        if(attribute != "geometry" and attribute != "entity_name" and attribute in selector_data):
+                            params[attribute] = selector_data[attribute]
 
                     # Add geometry
                     lonlat = self.coordinatesToPostgis(selector_data[self.meta['x_coordinate']], selector_data[self.meta['y_coordinate']])
