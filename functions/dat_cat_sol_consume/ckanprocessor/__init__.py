@@ -32,7 +32,7 @@ class CKANProcessor(object):
                     "maintainer": maintainer,
                     "extras": dict_list
                 }
-                # name is used for url and cant have uppercase or spaces so we have to replace those
+                # name is used for url and cannot have uppercase or spaces so we have to replace those
                 data_dict["name"] = data_dict["name"].replace("/", "_")
                 data_dict["name"] = data_dict["name"].replace(".", "-")
                 data_dict["name"] = data_dict["name"].lower()
