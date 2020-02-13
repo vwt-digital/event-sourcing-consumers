@@ -25,9 +25,9 @@ class DBProcessor(object):
         selector_data = payload[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
 
         # If both x and y coordinate in request put request in DB, otherwise do nothing
-        if self.meta['x_coordinate'] in selector_data and self.meta['y_coordinate'] in selector_data:
+        if self.meta['longitude'] in selector_data and self.meta['latitude'] in selector_data:
             # Only if x and y are not 0
-            if selector_data[self.meta['x_coordinate']] != "0" and selector_data[self.meta['y_coordinate']] != "0":
+            if selector_data[self.meta['longitude']] != "0" and selector_data[self.meta['latitude']] != "0":
                 try:
                     meta_data = MetaData(bind=self.engine, reflect=True)
                     workflow_projects = meta_data.tables[self.meta['entity_name']]
@@ -41,7 +41,7 @@ class DBProcessor(object):
                             params[attribute] = selector_data[attribute]
 
                     # Add geometry
-                    lonlat = self.coordinatesToPostgis(selector_data[self.meta['x_coordinate']], selector_data[self.meta['y_coordinate']])
+                    lonlat = self.coordinatesToPostgis(selector_data[self.meta['longitude']], selector_data[self.meta['latitude']])
                     params[self.meta['geometry']] = lonlat
 
                     # Do PostgreSQL UPSERT
@@ -57,12 +57,12 @@ class DBProcessor(object):
             else:
                 print("x coordinate or y coordinate is 0, no upload")
 
-    def coordinatesToPostgis(self, x_coordinate, y_coordinate):
+    def coordinatesToPostgis(self, longitude, latitude):
         # Only points are added now, but what if we want other geometry? Then we should get more info from the JSON
-        point = geoalchemy2.shape.from_shape(Point(float(y_coordinate), float(x_coordinate)), srid=4326)
+        point = geoalchemy2.shape.from_shape(Point(float(longitude), float(latitude)), srid=4326)
 
         # Point in EPSG 4326, aka longitude and latitude
-        # Returns the same as when you do: "ST_Transform(ST_SetSRID(ST_MakePoint({x_coordinate},{y_coordinate}),3857),4326)"
+        # Returns the same as when you do: "ST_Transform(ST_SetSRID(ST_MakePoint({longitude},{latitude}),3857),4326)"
         return point
 
     def getconn(self):
