@@ -27,7 +27,8 @@ class DBProcessor(object):
         # If both x and y coordinate in request put request in DB, otherwise do nothing
         if self.meta['longitude'] in selector_data and self.meta['latitude'] in selector_data:
             # Only if x and y are not 0
-            if selector_data[self.meta['longitude']] != "0" and selector_data[self.meta['latitude']] != "0":
+            if selector_data[self.meta['longitude']] != "0" and selector_data[self.meta['latitude']] != "0" \
+                    and selector_data[self.meta['longitude']] and selector_data[self.meta['latitude']]:
                 try:
                     meta_data = MetaData(bind=self.engine, reflect=True)
                     workflow_projects = meta_data.tables[self.meta['entity_name']]
