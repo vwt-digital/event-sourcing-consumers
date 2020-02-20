@@ -18,10 +18,10 @@ class CKANProcessor(object):
                 # Put the details of the dataset we're going to create into a dict.
                 # Using data.get sometimes because some values can remain empty while others should give an error
                 dict_list = [
-                    {"access level": data.get('accessLevel')},
-                    {"Issued": data.get('issued')},
-                    {"Spatial": data.get('spatial')},
-                    {"Modified": data.get('modified')}
+                    {"key": "access level", "value": data.get('accessLevel')},
+                    {"key": "Issued", "value": data.get('issued')},
+                    {"key": "Spatial", "value": data.get('spatial')},
+                    {"key": "Modified", "value": data.get('modified')}
                 ]
                 maintainer = data.get('contactPoint').get('fn')
                 data_dict = {
@@ -51,22 +51,22 @@ class CKANProcessor(object):
                     resource_dict_list.append(resource_dict)
                 try:
                     # Put dataset on ckan
-                    self.host.action.package_create(name=data_dict["name"], owner_org=data_dict["owner_org"], data_dict=data_dict)
+                    self.host.action.package_create(**data_dict)
                     # Put the resources on the dataset
                     for resource_d in resource_dict_list:
-                        self.host.action.resource_create(data_dict=resource_d)
+                        self.host.action.resource_create(**resource_d)
                 except ValidationError:
                     # Except if dataset already exists
                     print(f"Dataset {data_dict['name']} already exists, update")
-                    self.host.action.package_update(name=data_dict["name"], owner_org=data_dict["owner_org"], data_dict=data_dict)
+                    self.host.action.package_update(**data_dict)
                     for resource_d in resource_dict_list:
                         # Try to add resource
                         try:
-                            self.host.action.resource_create(package_id=resource_d["package_id"], data_dict=resource_d)
+                            self.host.action.resource_create(**resource_d)
                         except ValidationError:
                             # Resource already exists
                             print(f"Resource {resource_d['name']} already exists, update")
-                            self.host.action.resource_update(package_id=resource_d["package_id"], data_dict=resource_d)
+                            self.host.action.resource_update(**resource_d)
                 except Exception as e:
                     logging.error(f'Exception occurred:{e}')
         else:
