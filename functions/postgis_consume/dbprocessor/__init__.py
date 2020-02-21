@@ -21,6 +21,10 @@ class DBProcessor(object):
         self.engine = create_engine('postgresql+psycopg2://', creator=self.getconn)
         self.connection = self.engine.connect()
 
+    def __del__(self):
+        # closing database connection.
+        self.connection.close()
+
     def process(self, payload):
         selector_data = payload[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
 
@@ -29,32 +33,28 @@ class DBProcessor(object):
             # Only if x and y are not 0
             if selector_data[self.meta['longitude']] != "0" and selector_data[self.meta['latitude']] != "0" \
                     and selector_data[self.meta['longitude']] and selector_data[self.meta['latitude']]:
-                try:
-                    meta_data = MetaData(bind=self.engine, reflect=True)
-                    workflow_projects = meta_data.tables[self.meta['entity_name']]
+                meta_data = MetaData(bind=self.engine, reflect=True)
+                workflow_projects = meta_data.tables[self.meta['entity_name']]
 
-                    params = {}
-                    params[self.meta.get("id_property")] = selector_data[self.meta.get("id_property")]
+                params = {}
+                params[self.meta.get("id_property")] = selector_data[self.meta.get("id_property")]
 
-                    # Add UPSERT params from config
-                    for attribute in self.attributes:
-                        if(attribute != "geometry" and attribute != "entity_name" and attribute in selector_data):
-                            params[attribute] = selector_data[attribute]
+                # Add UPSERT params from config
+                for attribute in self.attributes:
+                    if(attribute != "geometry" and attribute != "entity_name" and attribute in selector_data):
+                        params[attribute] = selector_data[attribute]
 
-                    # Add geometry
-                    lonlat = self.coordinatesToPostgis(selector_data[self.meta['longitude']], selector_data[self.meta['latitude']])
-                    params[self.meta['geometry']] = lonlat
+                # Add geometry
+                lonlat = self.coordinatesToPostgis(selector_data[self.meta['longitude']], selector_data[self.meta['latitude']])
+                params[self.meta['geometry']] = lonlat
 
-                    # Do PostgreSQL UPSERT
-                    upsert = insert(workflow_projects).values([params])
-                    upsert = upsert.on_conflict_do_update(
-                        index_elements=[self.meta['id_property']],
-                        set_=params
-                    )
-                    self.connection.execute(upsert)
-                finally:
-                    # closing database connection.
-                    self.connection.close()
+                # Do PostgreSQL UPSERT
+                upsert = insert(workflow_projects).values([params])
+                upsert = upsert.on_conflict_do_update(
+                    index_elements=[self.meta['id_property']],
+                    set_=params
+                )
+                self.connection.execute(upsert)
             else:
                 print("x coordinate or y coordinate is 0, no upload")
 
