@@ -189,7 +189,7 @@ def insert_Hierarchy(data_dict, subscription, session, sourceKey='sourceKey', ts
     def get_bpnr_regex(cell):
         if isinstance(cell, str):
             reconstruction = re.compile(r'(REC20\d{7})')
-            nonreconstruction = re.compile(r'(20\d{7})')
+            nonreconstruction = re.compile(r'(20\d{7})|(71\d{7})')
             bpnr = reconstruction.findall(cell if cell != np.nan else '')
             if len(bpnr) == 0:
                 bpnr = nonreconstruction.findall(
