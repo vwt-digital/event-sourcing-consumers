@@ -32,4 +32,7 @@ def json_to_database(request):
 
 
 if __name__ == '__main__':
-    logging.info("Hallo")
+    parser.process({"data_items": [
+            {"id": "10", "longitude": "4.5", "latitude": "52.3"},
+            {"id": "10", "longitude": "4.5", "latitude": "52.3"}
+    ]})
