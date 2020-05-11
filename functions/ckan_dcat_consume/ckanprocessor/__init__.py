@@ -17,11 +17,17 @@ class CKANProcessor(object):
             for data in selector_data['dataset']:
                 # Put the details of the dataset we're going to create into a dict.
                 # Using data.get sometimes because some values can remain empty while others should give an error
+                keywords = data.get('keyword')
+                keywords_string = ', '.join(keywords)
                 dict_list = [
-                    {"key": "access level", "value": data.get('accessLevel')},
+                    {"key": "Access Level", "value": data.get('accessLevel')},
                     {"key": "Issued", "value": data.get('issued')},
                     {"key": "Spatial", "value": data.get('spatial')},
-                    {"key": "Modified", "value": data.get('modified')}
+                    {"key": "Modified", "value": data.get('modified')},
+                    {"key": "Publisher", "value": data.get('publisher')},
+                    {"key": "Keywords", "value": keywords_string},
+                    {"key": "Temporal", "value": data.get('temporal')},
+                    {"key": "Accrual Periodicity", "value": data.get('accrualPeriodicity')}
                 ]
                 maintainer = data.get('contactPoint').get('fn')
                 data_dict = {
