@@ -24,7 +24,7 @@ class CKANProcessor(object):
                     {"key": "Issued", "value": data.get('issued')},
                     {"key": "Spatial", "value": data.get('spatial')},
                     {"key": "Modified", "value": data.get('modified')},
-                    {"key": "Publisher", "value": data.get('publisher')},
+                    {"key": "Publisher", "value": data.get('publisher').get('name')},
                     {"key": "Keywords", "value": keywords_string},
                     {"key": "Temporal", "value": data.get('temporal')},
                     {"key": "Accrual Periodicity", "value": data.get('accrualPeriodicity')}
