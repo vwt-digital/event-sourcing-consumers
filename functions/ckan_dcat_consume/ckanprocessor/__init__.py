@@ -70,41 +70,43 @@ class CKANProcessor(object):
                 logging.info("{} new and {} old resources for dataset '{}'".format(
                     len(diff.get('iterable_item_added', [])), len(diff.get('iterable_item_removed', [])),
                     data_dict['name']))
+
+                # Put dataset on ckan
+                try:
+                    logging.info(f"Creating dataset '{data_dict['name']}'")
+                    self.host.action.package_create(**data_dict)
+                except ValidationError:  # Dataset already exists
+                    logging.info(f"Dataset '{data_dict['name']}' already exists, updating")
+                    package = self.host.action.package_show(id=data_dict['name'])
+                    data_dict['id'] = package['id']
+                    self.host.action.package_patch(**data_dict)
+                except Exception as e:
+                    logging.error(f'Exception occurred: {e}')
+
                 if diff:
-                    try:
-                        # Put dataset on ckan
-                        try:
-                            logging.info(f"Creating dataset '{data_dict['name']}'")
-                            self.host.action.package_create(**data_dict)
-                        except ValidationError:  # Dataset already exists
-                            logging.info(f"Dataset '{data_dict['name']}' already exists, updating")
-                            package = self.host.action.package_show(id=data_dict['name'])
-                            data_dict['id'] = package['id']
-                            self.host.action.package_patch(**data_dict)
+                    # Delete old resources from the dataset
+                    if 'iterable_item_removed' in diff:
+                        for key in diff['iterable_item_removed']:
+                            resource_d = diff['iterable_item_removed'][key]
+                            try:
+                                logging.info(f"Deleting resource '{resource_d['name']}'")
+                                self.host.action.resource_delete(id=resource_d['id'])
+                            except Exception as e:
+                                logging.error(
+                                    f"Exception occurred when deleting resource '{resource_d['name']}': {e}")
+                                pass
 
-                        # Delete old resources from the dataset
-                        if 'iterable_item_removed' in diff:
-                            for key in diff['iterable_item_removed']:
-                                resource_d = diff['iterable_item_removed'][key]
-                                try:
-                                    logging.info(f"Deleting resource '{resource_d['name']}'")
-                                    self.host.action.resource_delete(id=resource_d['id'])
-                                except Exception as e:
-                                    logging.error(
-                                        f"Exception occurred when deleting resource '{resource_d['name']}': {e}")
-                                    pass
-
-                        # Put new resources on the dataset
-                        if 'iterable_item_added' in diff:
-                            for key in diff['iterable_item_added']:
-                                resource_d = diff['iterable_item_added'][key]
-                                try:
-                                    logging.info(f"Creating resource '{resource_d['name']}'")
-                                    self.host.action.resource_create(**resource_d)
-                                except ValidationError:  # Resource already exists
-                                    logging.info(f"Resource '{resource_d['name']}' already exists, updating")
-                                    self.host.action.resource_update(**resource_d)
-                    except Exception as e:
-                        logging.error(f'Exception occurred: {e}')
+                    # Put new resources on the dataset
+                    if 'iterable_item_added' in diff:
+                        for key in diff['iterable_item_added']:
+                            resource_d = diff['iterable_item_added'][key]
+                            try:
+                                logging.info(f"Creating resource '{resource_d['name']}'")
+                                self.host.action.resource_create(**resource_d)
+                            except ValidationError:  # Resource already exists
+                                logging.info(f"Resource '{resource_d['name']}' already exists, updating")
+                                self.host.action.resource_update(**resource_d)
+                            except Exception as e:
+                                logging.error(f'Exception occurred: {e}')
         else:
             logging.info("JSON request does not contain a dataset")
