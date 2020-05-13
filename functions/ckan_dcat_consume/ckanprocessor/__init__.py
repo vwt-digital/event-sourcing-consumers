@@ -1,7 +1,9 @@
 import config
 import os
-from ckanapi import RemoteCKAN, ValidationError
 import logging
+
+from deepdiff import DeepDiff
+from ckanapi import RemoteCKAN, ValidationError
 
 
 class CKANProcessor(object):
@@ -13,7 +15,7 @@ class CKANProcessor(object):
 
     def process(self, payload):
         selector_data = payload[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
-        if('dataset' in selector_data):
+        if 'dataset' in selector_data:
             for data in selector_data['dataset']:
                 # Put the details of the dataset we're going to create into a dict.
                 # Using data.get sometimes because some values can remain empty while others should give an error
@@ -55,25 +57,54 @@ class CKANProcessor(object):
                         "mediaType": mediatype
                     }
                     resource_dict_list.append(resource_dict)
-                try:
-                    # Put dataset on ckan
-                    self.host.action.package_create(**data_dict)
-                    # Put the resources on the dataset
-                    for resource_d in resource_dict_list:
-                        self.host.action.resource_create(**resource_d)
-                except ValidationError:
-                    # Except if dataset already exists
-                    print(f"Dataset {data_dict['name']} already exists, update")
-                    self.host.action.package_update(**data_dict)
-                    for resource_d in resource_dict_list:
-                        # Try to add resource
+
+                exclude_paths = ['mimetype', 'cache_url', 'state', 'hash', 'cache_last_updated', 'created', 'size',
+                                 'mimetype_inner', 'last_modified', 'position', 'url_type', 'id', 'resource_type',
+                                 'package_id']
+                exclude_regex_paths = [r"root\[\d+\]\['%s'\]" % path for path in exclude_paths]
+
+                cur_package = self.host.action.package_show(id=data_dict["name"])
+                diff = DeepDiff(cur_package['resources'], resource_dict_list, ignore_order=True,
+                                exclude_regex_paths=exclude_regex_paths)
+
+                logging.info("{} new and {} old resources for dataset '{}'".format(
+                    len(diff.get('iterable_item_added', [])), len(diff.get('iterable_item_removed', [])),
+                    data_dict['name']))
+                if diff:
+                    try:
+                        # Put dataset on ckan
                         try:
-                            self.host.action.resource_create(**resource_d)
-                        except ValidationError:
-                            # Resource already exists
-                            print(f"Resource {resource_d['name']} already exists, update")
-                            self.host.action.resource_update(**resource_d)
-                except Exception as e:
-                    logging.error(f'Exception occurred:{e}')
+                            logging.info(f"Creating dataset '{data_dict['name']}'")
+                            self.host.action.package_create(**data_dict)
+                        except ValidationError:  # Dataset already exists
+                            logging.info(f"Dataset '{data_dict['name']}' already exists, updating")
+                            package = self.host.action.package_show(id=data_dict['name'])
+                            data_dict['id'] = package['id']
+                            self.host.action.package_patch(**data_dict)
+
+                        # Delete old resources from the dataset
+                        if 'iterable_item_removed' in diff:
+                            for key in diff['iterable_item_removed']:
+                                resource_d = diff['iterable_item_removed'][key]
+                                try:
+                                    logging.info(f"Deleting resource '{resource_d['name']}'")
+                                    self.host.action.resource_delete(id=resource_d['id'])
+                                except Exception as e:
+                                    logging.error(
+                                        f"Exception occurred when deleting resource '{resource_d['name']}': {e}")
+                                    pass
+
+                        # Put new resources on the dataset
+                        if 'iterable_item_added' in diff:
+                            for key in diff['iterable_item_added']:
+                                resource_d = diff['iterable_item_added'][key]
+                                try:
+                                    logging.info(f"Creating resource '{resource_d['name']}'")
+                                    self.host.action.resource_create(**resource_d)
+                                except ValidationError:  # Resource already exists
+                                    logging.info(f"Resource '{resource_d['name']}' already exists, updating")
+                                    self.host.action.resource_update(**resource_d)
+                    except Exception as e:
+                        logging.error(f'Exception occurred: {e}')
         else:
-            print("JSON request does not contain a dataset")
+            logging.info("JSON request does not contain a dataset")
