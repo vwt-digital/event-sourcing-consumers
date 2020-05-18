@@ -16,7 +16,7 @@ class CKANProcessor(object):
         selector_data = payload[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
         if 'dataset' in selector_data:
             for data in selector_data['dataset']:
-                # Put the details of the dataset we're going to create into a dict.
+                # Put the details of the dataset we're going to create into a dict
                 # Using data.get sometimes because some values can remain empty while others should give an error
                 keywords = data.get('keyword')
                 keywords_string = ""
