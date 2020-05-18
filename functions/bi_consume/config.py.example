@@ -1,0 +1,6 @@
+firestore = {
+    'my-topic-sub': {
+        'collection': 'my-objects',
+        'keys': ['my-object-key']
+    }
+}
