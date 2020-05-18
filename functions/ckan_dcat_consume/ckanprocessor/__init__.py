@@ -2,7 +2,7 @@ import config
 import os
 import logging
 
-from ckanapi import RemoteCKAN, ValidationError, NotFound
+from ckanapi import RemoteCKAN, ValidationError, NotFound, SearchError
 
 
 class CKANProcessor(object):
@@ -103,6 +103,8 @@ class CKANProcessor(object):
                         except NotFound:  # Resource does not exist
                             logging.info(f"Resource '{resource['name']}' does not exist, adding to 'resources_to_create'")
                             resources_to_create.append(resource['name'])
+                        except SearchError:
+                            logging.error(f"SearchError occured while patching resource '{resource['name']}'")
 
                     # Create resources
                     for name in resources_to_create:
@@ -114,6 +116,8 @@ class CKANProcessor(object):
                             logging.info(f"Resource '{resource['name']}' already exists, patching resource")
                             resource['id'] = self.host.action.resource_show(id=name).get('id')
                             self.host.action.resource_patch(**resource)
+                        except SearchError:
+                            logging.error(f"SearchError occured while creating resource '{resource['name']}'")
 
                     # Delete resources
                     for name in resources_to_delete:
@@ -123,7 +127,7 @@ class CKANProcessor(object):
                             logging.info(f"Deleting resource '{resource['name']}'")
                             self.host.action.resource_delete(id=resource['id'])
                         except Exception as e:  # An exception occurred
-                            logging.error(f"Exception occurred when deleting resource '{resource['name']}': {e}")
+                            logging.error(f"Exception occurred while deleting resource '{resource['name']}': {e}")
                             pass
         else:
             logging.info("JSON request does not contain a dataset")
