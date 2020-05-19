@@ -14,7 +14,20 @@ class CKANProcessor(object):
 
     def process(self, payload):
         selector_data = payload[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
-        if 'dataset' in selector_data:
+
+        if len(selector_data.get('dataset', [])) > 0:
+            tag_dict = []
+            for name in ['domain', 'solution']:
+                vocabulary = self.check_vocabulary_existence(name)  # Check if correct vocabulary tags exist
+                if name in selector_data:
+                    if selector_data[name] not in self.host.action.tag_list(vocabulary_id=vocabulary['id']):
+                        tag = self.host.action.tag_create(name=selector_data[name], vocabulary_id=vocabulary['id'])
+                        logging.info(f"Created {name} tag for {selector_data[name]}")
+                    else:
+                        tag = self.host.action.tag_show(id=selector_data[name], vocabulary_id=vocabulary['id'])
+
+                    tag_dict.append(tag)
+
             for data in selector_data['dataset']:
                 # Put the details of the dataset we're going to create into a dict
                 # Using data.get sometimes because some values can remain empty while others should give an error
@@ -39,6 +52,7 @@ class CKANProcessor(object):
                     "notes": data['rights'],
                     "owner_org": 'dat',
                     "maintainer": maintainer,
+                    "tags": tag_dict,
                     "extras": dict_list
                 }
                 # name is used for url and cannot have uppercase or spaces so we have to replace those
@@ -131,3 +145,9 @@ class CKANProcessor(object):
                             pass
         else:
             logging.info("JSON request does not contain a dataset")
+
+    def check_vocabulary_existence(self, name):
+        try:
+            return self.host.action.vocabulary_show(id=name)
+        except NotFound:
+            return self.host.action.vocabulary_create(name=name)
