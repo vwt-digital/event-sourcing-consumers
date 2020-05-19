@@ -24,7 +24,7 @@ def json_to_ckan(request):
         if status == "active":
             parser.process(json.loads(payload))
         else:
-            logging.error("Function's state is inactive")
+            logging.info("Function's state is inactive")
             return 'Function inactive', 503
 
     except Exception as e:
