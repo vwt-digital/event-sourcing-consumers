@@ -16,42 +16,26 @@ class CKANProcessor(object):
         selector_data = payload[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
 
         if len(selector_data.get('dataset', [])) > 0:
-            tag_dict = []
-            for name in ['domain', 'solution']:
-                vocabulary = self.check_vocabulary_existence(name)  # Check if correct vocabulary tags exist
-                if name in selector_data:
-                    if selector_data[name] not in self.host.action.tag_list(vocabulary_id=vocabulary['id']):
-                        tag = self.host.action.tag_create(name=selector_data[name], vocabulary_id=vocabulary['id'])
-                        logging.info(f"Created {name} tag for {selector_data[name]}")
-                    else:
-                        tag = self.host.action.tag_show(id=selector_data[name], vocabulary_id=vocabulary['id'])
-
-                    tag_dict.append(tag)
+            tag_dict = self.create_tag_dict(selector_data)
 
             for data in selector_data['dataset']:
                 # Put the details of the dataset we're going to create into a dict
-                # Using data.get sometimes because some values can remain empty while others should give an error
-                keywords = data.get('keyword')
-                keywords_string = ""
-                if keywords:
-                    keywords_string = ', '.join(keywords)
                 dict_list = [
                     {"key": "Access Level", "value": data.get('accessLevel')},
                     {"key": "Issued", "value": data.get('issued')},
                     {"key": "Spatial", "value": data.get('spatial')},
                     {"key": "Modified", "value": data.get('modified')},
                     {"key": "Publisher", "value": data.get('publisher').get('name')},
-                    {"key": "Keywords", "value": keywords_string},
+                    {"key": "Keywords", "value": ', '.join(data.get('keyword')) if 'keyword' in data else ""},
                     {"key": "Temporal", "value": data.get('temporal')},
                     {"key": "Accrual Periodicity", "value": data.get('accrualPeriodicity')}
                 ]
-                maintainer = data.get('contactPoint').get('fn')
                 data_dict = {
                     "name": data['identifier'],
                     "title": data['title'],
                     "notes": data['rights'],
                     "owner_org": 'dat',
-                    "maintainer": maintainer,
+                    "maintainer": data.get('contactPoint').get('fn'),
                     "tags": tag_dict,
                     "extras": dict_list
                 }
@@ -61,15 +45,13 @@ class CKANProcessor(object):
                 # Create list with future resources
                 future_resources_list = {}
                 for resource in data['distribution']:
-                    description = resource.get('description')
-                    mediatype = resource.get('mediaType')
                     resource_dict = {
                         "package_id": data_dict["name"],
                         "url": resource['accessURL'],
-                        "description": description,
+                        "description": resource.get('description', ''),
                         "name": resource['title'],
                         "format": resource['format'],
-                        "mediaType": mediatype
+                        "mediaType": resource.get('mediaType', '')
                     }
                     if resource['title'] not in future_resources_list:
                         future_resources_list[resource['title']] = resource_dict
@@ -77,77 +59,101 @@ class CKANProcessor(object):
                         logging.error(f"'{resource['title']}' already exists, rename this resource")
                         continue
 
-                current_resources_list = {}
-                try:
-                    # Create list with current resources
-                    cur_package = self.host.action.package_show(id=data_dict["name"])
-                    for resource in cur_package['resources']:
-                        current_resources_list[resource['name']] = resource
-                except NotFound as e:
-                    logging.exception(e)
+                # Create lists to create, update and delete
+                current_resources_list = self.patch_dataset(data_dict)
 
-                if current_resources_list:
-                    # Create lists to create, update and delete
-                    resources_to_create = list(set(future_resources_list).difference(current_resources_list))
-                    resources_to_update = list(set(future_resources_list).intersection(current_resources_list))
-                    resources_to_delete = list(set(current_resources_list).difference(future_resources_list))
+                resources_to_create = list(set(future_resources_list).difference(current_resources_list))
+                resources_to_update = list(set(future_resources_list).intersection(current_resources_list))
+                resources_to_delete = list(set(current_resources_list).difference(future_resources_list))
 
-                    logging.info("{} new, {} existing and {} old resources for dataset '{}'".format(
-                        len(resources_to_create), len(resources_to_update), len(resources_to_delete), data_dict['name']))
+                self.process_resources(data_dict=data_dict, to_create=resources_to_create,
+                                       to_update=resources_to_update, to_delete=resources_to_delete,
+                                       current_list=current_resources_list, future_list=future_resources_list)
 
-                    # Patch dataset
-                    try:
-                        logging.info(f"Patching dataset '{data_dict['name']}'")
-                        data_dict['id'] = self.host.action.package_show(id=data_dict['name']).get('id')
-                        self.host.action.package_patch(**data_dict)
-                    except NotFound:
-                        logging.info(f"Creating dataset '{data_dict['name']}'")
-                        self.host.action.package_create(**data_dict)
-                    except Exception as e:
-                        logging.error(f'Exception occurred: {e}')
-
-                    # Patch resources
-                    for name in resources_to_update:
-                        resource = future_resources_list.get(name)
-                        resource['id'] = current_resources_list.get(name).get('id')
-
-                        try:
-                            logging.info(f"Patching resource '{resource['name']}'")
-                            self.host.action.resource_patch(**resource)
-                        except NotFound:  # Resource does not exist
-                            logging.info(f"Resource '{resource['name']}' does not exist, adding to 'resources_to_create'")
-                            resources_to_create.append(resource['name'])
-                        except SearchError:
-                            logging.error(f"SearchError occured while patching resource '{resource['name']}'")
-
-                    # Create resources
-                    for name in resources_to_create:
-                        resource = future_resources_list.get(name)
-                        try:
-                            logging.info(f"Creating resource '{resource['name']}'")
-                            self.host.action.resource_create(**resource)
-                        except ValidationError:  # Resource already exists
-                            logging.info(f"Resource '{resource['name']}' already exists, patching resource")
-                            resource['id'] = self.host.action.resource_show(id=name).get('id')
-                            self.host.action.resource_patch(**resource)
-                        except SearchError:
-                            logging.error(f"SearchError occured while creating resource '{resource['name']}'")
-
-                    # Delete resources
-                    for name in resources_to_delete:
-                        resource = current_resources_list.get(name)
-
-                        try:
-                            logging.info(f"Deleting resource '{resource['name']}'")
-                            self.host.action.resource_delete(id=resource['id'])
-                        except Exception as e:  # An exception occurred
-                            logging.error(f"Exception occurred while deleting resource '{resource['name']}': {e}")
-                            pass
         else:
             logging.info("JSON request does not contain a dataset")
 
-    def check_vocabulary_existence(self, name):
+    def create_tag_dict(self, catalog):
+        tag_dict = []
+        for name in ['domain', 'solution']:
+            vocabulary = None
+            try:  # Check if correct vocabulary tags exist
+                vocabulary = self.host.action.vocabulary_show(id=name)
+            except NotFound:
+                vocabulary = self.host.action.vocabulary_create(name=name)
+            except Exception:
+                raise
+
+            # Create package's tags list
+            if vocabulary and name in catalog:
+                if catalog[name] not in self.host.action.tag_list(vocabulary_id=vocabulary['id']):
+                    tag = self.host.action.tag_create(name=catalog[name], vocabulary_id=vocabulary['id'])
+                    logging.info(f"Created {name} tag for {catalog[name]}")
+                else:
+                    tag = self.host.action.tag_show(id=catalog[name], vocabulary_id=vocabulary['id'])
+
+                tag_dict.append(tag)
+
+        return tag_dict
+
+    def patch_dataset(self, data_dict):
+        logging.info(f"Patching dataset '{data_dict['name']}'")
+        current_resources_list = {}
+
         try:
-            return self.host.action.vocabulary_show(id=name)
+            cur_package = self.host.action.package_show(id=data_dict['name'])  # Retrieve package
+
+            for resource in cur_package['resources']:  # Create list with package resources
+                current_resources_list[resource['name']] = resource
+
+            data_dict['id'] = cur_package.get('id')  # Set package id for patching
+            self.host.action.package_patch(**data_dict)  # Patch package
         except NotFound:
-            return self.host.action.vocabulary_create(name=name)
+            logging.info(f"Creating dataset '{data_dict['name']}'")
+            self.host.action.package_create(**data_dict)  # Create package if not-existing
+        except Exception:
+            raise
+
+        return current_resources_list
+
+    def process_resources(self, data_dict, to_create, to_update, to_delete, current_list, future_list):
+        logging.info("{} new, {} existing and {} old resources for dataset '{}'".format(
+            len(to_create), len(to_update), len(to_delete), data_dict['name']))
+
+        # Patch resources
+        for name in to_update:
+            resource = future_list.get(name)
+            resource['id'] = current_list.get(name).get('id')
+
+            try:
+                logging.info(f"Patching resource '{resource['name']}'")
+                self.host.action.resource_patch(**resource)
+            except NotFound:  # Resource does not exist
+                logging.info(f"Resource '{resource['name']}' does not exist, adding to 'to_create'")
+                to_create.append(resource['name'])
+            except SearchError:
+                logging.error(f"SearchError occured while patching resource '{resource['name']}'")
+
+        # Create resources
+        for name in to_create:
+            resource = future_list.get(name)
+            try:
+                logging.info(f"Creating resource '{resource['name']}'")
+                self.host.action.resource_create(**resource)
+            except ValidationError:  # Resource already exists
+                logging.info(f"Resource '{resource['name']}' already exists, patching resource")
+                resource['id'] = self.host.action.resource_show(id=name).get('id')
+                self.host.action.resource_patch(**resource)
+            except SearchError:
+                logging.error(f"SearchError occured while creating resource '{resource['name']}'")
+
+        # Delete resources
+        for name in to_delete:
+            resource = current_list.get(name)
+
+            try:
+                logging.info(f"Deleting resource '{resource['name']}'")
+                self.host.action.resource_delete(id=resource['id'])
+            except Exception as e:  # An exception occurred
+                logging.error(f"Exception occurred while deleting resource '{resource['name']}': {e}")
+                pass
