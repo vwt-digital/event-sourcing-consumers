@@ -30,12 +30,17 @@ class CKANProcessor(object):
                     {"key": "Temporal", "value": data.get('temporal')},
                     {"key": "Accrual Periodicity", "value": data.get('accrualPeriodicity')}
                 ]
+
+                if 'githubPath' in selector_data:
+                    dict_list.append({"key": "GitHub Path", "value": selector_data.get('githubPath')})
+
                 data_dict = {
                     "name": data['identifier'],
                     "title": data['title'],
                     "notes": data['rights'],
                     "owner_org": 'dat',
                     "maintainer": data.get('contactPoint').get('fn'),
+                    "state": "active",
                     "tags": tag_dict,
                     "extras": dict_list
                 }
