@@ -1,6 +1,7 @@
 import logging
 import json
 import base64
+import os
 from ckanprocessor import CKANProcessor
 
 parser = CKANProcessor()
@@ -19,7 +20,12 @@ def json_to_ckan(request):
         subscription = envelope['subscription'].split('/')[-1]
         logging.info(f'Message received from {subscription} [{payload}]')
 
-        parser.process(json.loads(payload))
+        status = os.environ.get('STATUS', 'Required parameter is missing')
+        if status == "active":
+            parser.process(json.loads(payload))
+        else:
+            logging.info("Function's state is inactive")
+            return 'Function inactive', 503
 
     except Exception as e:
         logging.info('Extract of subscription failed')
