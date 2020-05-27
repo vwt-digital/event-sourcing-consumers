@@ -31,9 +31,6 @@ class CKANProcessor(object):
                     {"key": "Accrual Periodicity", "value": data.get('accrualPeriodicity')}
                 ]
 
-                if 'githubPath' in selector_data:
-                    dict_list.append({"key": "GitHub Path", "value": selector_data.get('githubPath')})
-
                 data_dict = {
                     "name": data['identifier'],
                     "title": data['title'],
@@ -41,6 +38,7 @@ class CKANProcessor(object):
                     "owner_org": 'dat',
                     "maintainer": data.get('contactPoint').get('fn'),
                     "state": "active",
+                    "github_url": selector_data.get('githubUrl', None),
                     "tags": tag_dict,
                     "extras": dict_list
                 }
@@ -93,7 +91,7 @@ class CKANProcessor(object):
             if vocabulary and name in catalog:
                 if catalog[name] not in self.host.action.tag_list(vocabulary_id=vocabulary['id']):
                     tag = self.host.action.tag_create(name=catalog[name], vocabulary_id=vocabulary['id'])
-                    logging.info(f"Created {name} tag for {catalog[name]}")
+                    logging.info(f"Created '{name}' tag for '{catalog[name]}'")
                 else:
                     tag = self.host.action.tag_show(id=catalog[name], vocabulary_id=vocabulary['id'])
 
