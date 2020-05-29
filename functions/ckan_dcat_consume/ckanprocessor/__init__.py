@@ -1,3 +1,4 @@
+import config
 import os
 import logging
 
@@ -6,6 +7,7 @@ from ckanapi import RemoteCKAN, ValidationError, NotFound, SearchError
 
 class CKANProcessor(object):
     def __init__(self):
+        self.meta = config.DATA_CATALOG_PROPERTIES[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
         self.api_key = os.environ.get('API_KEY', 'Required parameter is missing')
         self.ckan_host = os.environ.get('CKAN_SITE_URL', 'Required parameter is missing')
         self.host = RemoteCKAN(self.ckan_host, apikey=self.api_key)
@@ -36,7 +38,7 @@ class CKANProcessor(object):
                     "owner_org": 'dat',
                     "maintainer": data.get('contactPoint').get('fn'),
                     "state": "active",
-                    "github_repo": selector_data.get('githubRepo', None),
+                    "github_url": selector_data.get('githubUrl', None),
                     "tags": tag_dict,
                     "extras": dict_list
                 }
