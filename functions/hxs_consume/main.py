@@ -372,7 +372,11 @@ def topic_to_cloudsql(request):
         return 'OK', 204
 
     try:
-        send_to_cloudsql(subscription, payload, ts)
+        if isinstance(payload, list):
+            for item in payload:
+                send_to_cloudsql(subscription, item, ts)
+            else:
+                send_to_cloudsql(subscription, payload, ts)
     except Exception as e:
         logging.error("Send_to_cloudsql function failed")
         logging.debug(e)
