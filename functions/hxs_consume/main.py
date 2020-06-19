@@ -320,6 +320,8 @@ def send_to_cloudsql(subscription, payload, ts=None):
             records = records
         else:
             records = [records]
+
+        count = 0
         for i in records:
             j, sourceKey = add_sourceKey(i, subscription)
 
@@ -328,10 +330,11 @@ def send_to_cloudsql(subscription, payload, ts=None):
 
             insert_ImportMeasureValues(
                 j, subscription, session, sourceKey=sourceKey, ts=ts, valueDate=ts)
-            logging.info('Record processed')
+
+            count += 1
 
         session.commit()
-        logging.info('Session committed')
+        logging.info('Session committed, {} records processed'.format(count))
     except Exception as e:
         session.rollback()
         logging.error('Session rolled back')
