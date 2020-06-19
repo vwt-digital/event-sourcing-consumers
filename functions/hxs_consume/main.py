@@ -310,22 +310,31 @@ def insert_Hierarchy(data_dict, subscription, session, sourceKey='sourceKey', ts
 
 
 def send_to_cloudsql(subscription, payload, ts=None):
-    j = json.loads(payload.decode())
+    records = json.loads(payload.decode())
 
     session = sa.orm.session.sessionmaker(
         engine, autoflush=False, autocommit=False)()
 
     try:
-        j, sourceKey = add_sourceKey(j, subscription)
+        if isinstance(records, list):
+            records = records
+        else:
+            records = [records]
 
-        insert_Hierarchy(j, subscription, session,
-                         sourceKey=sourceKey, ts=ts)
+        count = 0
+        for i in records:
+            j, sourceKey = add_sourceKey(i, subscription)
 
-        insert_ImportMeasureValues(
-            j, subscription, session, sourceKey=sourceKey, ts=ts, valueDate=ts)
+            insert_Hierarchy(j, subscription, session,
+                             sourceKey=sourceKey, ts=ts)
+
+            insert_ImportMeasureValues(
+                j, subscription, session, sourceKey=sourceKey, ts=ts, valueDate=ts)
+
+            count += 1
 
         session.commit()
-        logging.info('Session committed')
+        logging.info('Session committed, {} records processed'.format(count))
     except Exception as e:
         session.rollback()
         logging.error('Session rolled back')

@@ -1,0 +1,11 @@
+# Name of the firestore colleciton 
+FIRESTORE_COLLECTION = ''
+
+# List of keys necesarry for primarey key. 1 or more
+PRIMARY_KEYS = []
+
+# Rest of the columns necesarry
+COLUMNS = []
+
+# Size of the batch
+BATCH_SIZE = 500
