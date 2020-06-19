@@ -310,19 +310,25 @@ def insert_Hierarchy(data_dict, subscription, session, sourceKey='sourceKey', ts
 
 
 def send_to_cloudsql(subscription, payload, ts=None):
-    j = json.loads(payload.decode())
+    records = json.loads(payload.decode())
 
     session = sa.orm.session.sessionmaker(
         engine, autoflush=False, autocommit=False)()
 
     try:
-        j, sourceKey = add_sourceKey(j, subscription)
+        if isinstance(records, list):
+            records = records
+        else:
+            records = [records]
+        for i in records:
+            j, sourceKey = add_sourceKey(i, subscription)
 
-        insert_Hierarchy(j, subscription, session,
-                         sourceKey=sourceKey, ts=ts)
+            insert_Hierarchy(j, subscription, session,
+                             sourceKey=sourceKey, ts=ts)
 
-        insert_ImportMeasureValues(
-            j, subscription, session, sourceKey=sourceKey, ts=ts, valueDate=ts)
+            insert_ImportMeasureValues(
+                j, subscription, session, sourceKey=sourceKey, ts=ts, valueDate=ts)
+            logging.info('Record processed')
 
         session.commit()
         logging.info('Session committed')
@@ -372,11 +378,7 @@ def topic_to_cloudsql(request):
         return 'OK', 204
 
     try:
-        if isinstance(payload, list):
-            for item in payload:
-                send_to_cloudsql(subscription, item, ts)
-            else:
-                send_to_cloudsql(subscription, payload, ts)
+        send_to_cloudsql(subscription, payload, ts)
     except Exception as e:
         logging.error("Send_to_cloudsql function failed")
         logging.debug(e)
