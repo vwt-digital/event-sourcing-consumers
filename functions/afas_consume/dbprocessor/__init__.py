@@ -13,10 +13,14 @@ class DBProcessor(object):
     def process(self, payload):
         if 'id_property' in self.meta and self.meta['id_property'] in payload:
             kind, key = self.identity(payload)
-            entity_key = self.client.key(kind, key)
-            entity = self.client.get(entity_key)
-            if not entity:
-                entity = datastore.Entity(key=entity_key)
+            if kind and key:
+                entity_key = self.client.key(kind, key)
+                entity = self.client.get(entity_key)
+                if not entity:
+                    entity = datastore.Entity(key=entity_key)
+            else:
+                logging.info('Received payload without matching id_property or filter_property, skipping this entity')
+                entity = None
         elif 'filter_property' in self.meta and self.meta['filter_property'] in payload:
             # get entity_key from filter property
             query = self.client.query(kind=self.meta['entity_name'])
@@ -24,7 +28,7 @@ class DBProcessor(object):
             query_results = list(query.fetch(limit=1))
             entity = query_results[0] if query_results else None
         else:
-            logging.error('Received payload without matching id_property or filter_property')
+            logging.info('Received payload without matching id_property or filter_property, skipping this entity')
             entity = None
 
         if entity is not None:
@@ -32,7 +36,7 @@ class DBProcessor(object):
             self.client.put(entity)
 
     def identity(self, payload):
-        return self.meta['entity_name'], payload[self.meta['id_property']]
+        return self.meta['entity_name'], payload.get(self.meta['id_property'], None)
 
     @staticmethod
     def populate_from_payload(entity, payload):
