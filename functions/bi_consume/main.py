@@ -35,29 +35,35 @@ def handler(request):
 
 def fs_write(coll, keys, ts, data):
 
-    data['updated'] = ts
-    unique_key = '|'.join(f'{data[key]}' for key in keys)
-    unique_id = hashlib.md5(unique_key.encode()).hexdigest()
-    version_id = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(12))
-
-    collection = db.collection(coll)
-    ref = collection.document(unique_id)
-    doc = ref.get()
-
-    if not doc.exists:
-        logging.info(f'Document with id {unique_id} in collection {coll} does not exist, creating new document')
-        data['created'] = ts
-        ref.set(data)
-        ref.collection(f'_{coll}_versions').document(version_id).create(data)
+    if isinstance(data, list):
+        data = data
     else:
-        logging.info(f'Document with id {unique_id} in collection {coll} already exists, checking document version')
-        doc_dict = doc.to_dict()
-        if data.get('updated') == doc_dict.get('updated'):
-            logging.info(f'Document version already exists, finishing')
-        elif data.get('updated') > doc_dict.get('updated'):
-            logging.info(f'Document version does not exist, creating new version {version_id}')
-            data['created'] = doc_dict['created']
-            ref.set(data)
-            ref.collection(f'_{coll}_versions').document(version_id).set(data)
-        elif data.get('updated') < doc_dict.get('updated'):
-            logging.info(f'Document version is outdated, finishing')
+        data = [data]
+
+    for record in data:
+        record['updated'] = ts
+        unique_key = '|'.join(f'{record[key]}' for key in keys)
+        unique_id = hashlib.md5(unique_key.encode()).hexdigest()
+        version_id = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(12))
+
+        collection = db.collection(coll)
+        ref = collection.document(unique_id)
+        doc = ref.get()
+
+        if not doc.exists:
+            logging.info(f'Document with id {unique_id} in collection {coll} does not exist, creating new document')
+            record['created'] = ts
+            ref.set(record)
+            ref.collection(f'_{coll}_versions').document(version_id).create(record)
+        else:
+            logging.info(f'Document with id {unique_id} in collection {coll} already exists, checking document version')
+            doc_dict = doc.to_dict()
+            if record.get('updated') == doc_dict.get('updated'):
+                logging.info(f'Document version already exists, finishing')
+            elif record.get('updated') > doc_dict.get('updated'):
+                logging.info(f'Document version does not exist, creating new version {version_id}')
+                record['created'] = doc_dict['created']
+                ref.set(record)
+                ref.collection(f'_{coll}_versions').document(version_id).set(record)
+            elif record.get('updated') < doc_dict.get('updated'):
+                logging.info(f'Document version is outdated, finishing')
