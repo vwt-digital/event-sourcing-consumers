@@ -27,24 +27,15 @@ def handler(request):
 
 def write_to_fs(data):
 
-    col_id = config.PRIMARY_KEYS
-    col = config.COLUMNS
-    f_coll = config.FIRESTORE_COLLECTION
-
     records = data['it-fiber-connect-new-construction']
     batch = db.batch()
 
     for i, row in enumerate(records):
-        row[col_id[0]] = row[col_id[0]][0:-13]
-        primary_key = row[col_id[0]]
-        for ii, el in enumerate(col_id):
-            if ii > 0:
-                primary_key += '_' + row[el]
-        record = dict(id=primary_key)
-        for key in col_id + col:
+        primary_key = row[config.PRIMARY_KEYS[0]]
+        record = {}
+        for key in config.COLUMNS:
             record[key] = row[key]
-        record['project'] = record.pop(col_id[0])
-        batch.set(db.collection(f_coll).document(record['id']), record)
+        batch.set(db.collection(config.FIRESTORE_COLLECTION).document(record[primary_key]), record)
         if (i + 1) % config.BATCH_SIZE == 0:
             batch.commit()
     batch.commit()
