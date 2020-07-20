@@ -31,11 +31,10 @@ def write_to_fs(data):
     batch = db.batch()
 
     for i, row in enumerate(records):
-        primary_key = row[config.PRIMARY_KEYS[0]]
         record = {}
         for key in config.COLUMNS:
             record[key] = row[key]
-        batch.set(db.collection(config.FIRESTORE_COLLECTION).document(record[primary_key]), record)
+        batch.set(db.collection(config.FIRESTORE_COLLECTION).document(record[config.PRIMARY_KEYS[0]]), record)
         if (i + 1) % config.BATCH_SIZE == 0:
             batch.commit()
     batch.commit()
