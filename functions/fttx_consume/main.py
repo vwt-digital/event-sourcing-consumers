@@ -17,11 +17,10 @@ def handler(request):
         data = json.loads(bytes)
         subscription = envelope['subscription'].split('/')[-1]
         logging.info(f'Read message from subscription {subscription}')
+        write_to_fs(data)
     except Exception as e:
         logging.error(f'Extracting of data failed: {e}')
         return 'Error', 500
-
-    write_to_fs(data)
 
     return 'OK', 204
 
@@ -38,6 +37,8 @@ def write_to_fs(data):
         batch.set(db.collection(config.FIRESTORE_COLLECTION[0]).document(record[config.PRIMARY_KEYS[0]]), record)
         if (i + 1) % config.BATCH_SIZE == 0:
             batch.commit()
+            logging.info(f'Write {i} message(s) to the firestore')
     batch.commit()
     db.collection(config.FIRESTORE_COLLECTION[1]).document('update_date_consume').set(dict(
         id='update_date_consume', date=datetime.datetime.now().strftime('%Y-%m-%d')))
+    logging.info('Writing message to firestore finished')
