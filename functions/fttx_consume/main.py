@@ -2,6 +2,7 @@ import json
 import base64
 import config
 import logging
+import datetime
 
 from google.cloud import firestore_v1
 
@@ -34,7 +35,9 @@ def write_to_fs(data):
         record = {}
         for key in config.COLUMNS:
             record[key] = row[key]
-        batch.set(db.collection(config.FIRESTORE_COLLECTION).document(record[config.PRIMARY_KEYS[0]]), record)
+        batch.set(db.collection(config.FIRESTORE_COLLECTION[0]).document(record[config.PRIMARY_KEYS[0]]), record)
         if (i + 1) % config.BATCH_SIZE == 0:
             batch.commit()
     batch.commit()
+    db.collection(config.FIRESTORE_COLLECTION[1]).document('update_date_consume').set(dict(
+        id='update_date_consume', date=datetime.datetime.now().strftime('%Y-%m-%d')))
