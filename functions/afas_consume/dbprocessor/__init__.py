@@ -45,6 +45,12 @@ class DBProcessor(object):
                 splitted_value = value.split(self.meta['value_formatter']['value'])
                 value = splitted_value[self.meta['value_formatter'].get('index', 0)]
 
+            if self.meta['value_formatter']['type'] == 'prepend' and 'value' in self.meta['value_formatter']:
+                value = self.meta['filter_property_addition']['value'] + value
+
+            if self.meta['value_formatter']['type'] == 'append' and 'value' in self.meta['value_formatter']:
+                value = value + self.meta['filter_property_addition']['value']
+
         return value
 
     @staticmethod
