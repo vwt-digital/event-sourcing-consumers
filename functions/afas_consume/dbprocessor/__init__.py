@@ -24,7 +24,8 @@ class DBProcessor(object):
         elif 'filter_property' in self.meta and self.meta['filter_property'] in payload:
             # get entity_key from filter property
             query = self.client.query(kind=self.meta['entity_name'])
-            query.add_filter(self.meta['filter_property'], '=', payload[self.meta['filter_property']])
+            query.add_filter(
+                self.meta['filter_property'], '=', self.value_formatter(payload[self.meta['filter_property']]))
             query_results = list(query.fetch(limit=1))
             entity = query_results[0] if query_results else None
         else:
@@ -36,7 +37,15 @@ class DBProcessor(object):
             self.client.put(entity)
 
     def identity(self, payload):
-        return self.meta['entity_name'], payload.get(self.meta['id_property'], None)
+        return self.meta['entity_name'], self.value_formatter(payload.get(self.meta['id_property'], None))
+
+    def value_formatter(self, value):
+        if value and 'value_formatter' in self.meta and 'type' in self.meta['value_formatter']:
+            if self.meta['value_formatter']['type'] == 'split' and 'value' in self.meta['value_formatter']:
+                splitted_value = value.split(self.meta['value_formatter']['value'])
+                value = splitted_value[self.meta['value_formatter'].get('index', 0)]
+
+        return value
 
     @staticmethod
     def populate_from_payload(entity, payload):
