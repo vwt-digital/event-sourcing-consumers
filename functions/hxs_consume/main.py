@@ -1,4 +1,5 @@
 import re
+import utils
 import json
 import hashlib
 import logging
@@ -7,7 +8,6 @@ import config
 import numpy as np
 import sqlalchemy as sa
 
-from google.cloud import kms_v1
 from datetime import datetime as dt
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -16,24 +16,11 @@ from sqlalchemy.ext.declarative import declarative_base
 logging.basicConfig(level=logging.INFO)
 Base = declarative_base()
 
-
-def get_authentication_secret(base64_string):
-    enc_secret = base64.b64decode(base64_string)
-    kms_client = kms_v1.KeyManagementServiceClient()
-    key_name = kms_client.crypto_key_path_path(
-        config.database['kms_project'],
-        config.database['kms_region'],
-        config.database['kms_keyring'],
-        config.database['kms_key']
-    )
-
-    decrypt_response = kms_client.decrypt(key_name, enc_secret)
-    return decrypt_response.plaintext.decode("utf-8").replace('\n', '')
-
+secret = utils.get_secret(config.database['project_id'], config.database['secret_name'])
 
 sacn = 'mysql+pymysql://{}:{}@/{}?unix_socket=/cloudsql/{}:europe-west1:{}'.format(
     config.database['db_user'],
-    get_authentication_secret(config.database['enc_password']),
+    secret,
     config.database['db_name'],
     config.database['project_id'],
     config.database['instance_id']
