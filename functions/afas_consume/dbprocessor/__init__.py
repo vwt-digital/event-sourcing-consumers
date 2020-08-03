@@ -27,7 +27,7 @@ class DBProcessor(object):
                 entity = None
         elif 'filter_property' in self.meta and self.meta['filter_property'] in payload:
             payload[self.meta['filter_property']] = self.value_formatter(
-                payload[self.meta['filter_property']])  # Make sure edited value is updated in payload
+                payload.get(self.meta['filter_property']))  # Make sure edited value is updated in payload
 
             # get entity_key from filter property
             query = self.client.query(kind=self.meta['entity_name'])
@@ -50,10 +50,10 @@ class DBProcessor(object):
                 value = splitted_value[self.meta['value_formatter'].get('index', 0)]
 
             if self.meta['value_formatter']['type'] == 'prepend' and 'value' in self.meta['value_formatter']:
-                value = self.meta['filter_property_addition']['value'] + value
+                value = self.meta['value_formatter']['value'] + value
 
             if self.meta['value_formatter']['type'] == 'append' and 'value' in self.meta['value_formatter']:
-                value = value + self.meta['filter_property_addition']['value']
+                value = value + self.meta['value_formatter']['value']
 
         return value
 
