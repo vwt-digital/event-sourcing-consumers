@@ -1,27 +1,26 @@
-# Each attribute specifies an entity to be updated through pubsub messages.
-# The configuration to use is specified by the DATA_SELECTOR environment variable.
-# entity_name specifies the DataStore Entity kind to be created/updated. 
-# When id_property is specified, the entity is retrieved based on key retrieval, with 
-# the value set to the specified attribute. The entity will be created when it does not exist.
-# When filter_property is specified, the entity is retrieved based on a filter on the 
-# specified attribute, comparing to the value retrieved from the message received. 
-# Using filter_property only supports updated and won't create new entities.
 AFAS_DB_PROCESSOR = {
-    "department": {
-        "entity_name": "Departments",
-        "id_property": "department_nr"
-    },
     "employee": {
         "entity_name": "Employees",
         "id_property": "email_address"
     },
+    "department": {
+        "entity_name": "Departments",
+        "id_property": "department_nr",
+        "value_formatter": {
+            "type": "split",
+            "value": ".",
+            "index": -1
+        }
+    },
     "bank": {
         "entity_name": "Employees",
-        "filter_property": "employee_nr"
+        "filter_property": "employee_nr",
+        "create_entity": True,
+        "value_formatter": {
+            "type": "prepend",
+            "value": "test."
+        }
     }
 }
 
-
-# DOMAIN_VALIDATION_TOKEN is used to validate the function as a verified domain to
-# enable pub/sub pushConfig.
 DOMAIN_VALIDATION_TOKEN = '<my domain validation token>'
