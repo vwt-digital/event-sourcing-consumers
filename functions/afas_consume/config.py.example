@@ -6,6 +6,21 @@ AFAS_DB_PROCESSOR = {
     "department": {
         "entity_name": "Departments",
         "id_property": "department_nr",
+        "property_rules": [
+            {
+                "rules": [
+                    {
+                        "name": "old.test_field_1",
+                        "operator": "non_empty"
+                    },
+                    {
+                        "name": "new.test_field_2",
+                        "operator": "greater_than",
+                        "value": "field:old.test_field_2"
+                    }
+                ]
+            }
+        ],
         "value_formatter": {
             "type": "split",
             "value": ".",

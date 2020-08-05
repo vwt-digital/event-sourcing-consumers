@@ -7,7 +7,7 @@ A `config.py` file is used to determine what the function should do with the inc
 See [config.py.example](config.py.example) for an example. 
 
 ### Data Selector
-A special Data Selector specifies which fields have to be processed. Each attribute specifies an entity to be updated 
+A special Data Selector specifies which fields have to be processed. Each item specifies an entity to be updated 
 through Pub/Sub messages. The configuration to use is specified by the `DATA_SELECTOR` environment variable.
 
 #### Entity name
@@ -47,6 +47,64 @@ The fields needed for this format are:
     "value": ".append"
 }
 ~~~
+
+#### Property rules
+Within the function it is possible to ensure the entity is only updated when a specific set of rules are passed. This can
+be done by declaring the `property_rules` attribute on an item. The attribute is a list of different rule sets that function
+as an `OR` query; at least one of the rule sets must be positive, otherwise the entity won't be updated. A rule set will
+be positive if each rule within has a positive outcome.
+
+A rule set can be defined as follow:
+~~~json
+{
+  "property_rules": [
+    {
+      "rules": [
+        {
+          "name": "old.test_field_1",
+          "operator": "non_empty"
+        },
+        {
+          "name": "new.test_field_2",
+          "operator": "greater_than",
+          "value": "field:old.test_field_2"
+        }
+      ]
+    }
+  ]
+}
+~~~
+
+The `rules` object consists of an endless list of rules where three fields per rule can be defined:
+
+##### Name [required]
+The `name` field is the key attribute that points to the value the rule is about. To ensure the value points towards
+the correct field, the format defines which dataset must be used. By defining either `old.` or `new.` the field will be 
+retrieved from either the existing entity or the new incoming message. After defining the dataset the name of the specific
+field can be defined, e.g. `old.test_field_1`. This example will retrieve the value set for the field `test_field_1` from
+the existing entity.
+
+##### Operator [required]
+The `operator` field will specify the condition the `name` value must abide to. The operators supported are:
+- `non_empty`
+- `empty`
+- `is_true`
+- `is_false`
+- `contains`*
+- `does_not_contain`*
+- `equal_to`*
+- `less_than`*
+- `less_than_or_equal_to`*
+- `greater_than`*
+- `greater_than_or_equal_to`*
+
+*\* Rule must also contain the [value](#value) field*
+
+##### Value
+The `value` is only required when using some [operators](#operator-[required]) (values with a `*`). This value field can be defined
+as two types: a static value or a dynamic value. The dynamic value can be specified to point to a certain data field based
+on the format described at '[Name](#name-[required])'. To use this dynamic field the format `field:<dataset>.<field_name>` 
+can be used.
 
 ### Domain Validation Token
 A `DOMAIN_VALIDATION_TOKEN` is used to validate the function as a verified domain to enable pub/sub pushConfig.
