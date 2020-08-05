@@ -34,7 +34,12 @@ class DBProcessor(object):
             query.add_filter(
                 self.meta['filter_property'], '=', payload[self.meta['filter_property']])
             query_results = list(query.fetch(limit=1))
-            entity = query_results[0] if query_results else None
+
+            if self.meta.get('create_entity', False) and not query_results:
+                entity_key = self.client.key(self.meta['entity_name'], payload[self.meta['filter_property']])
+                entity = datastore.Entity(key=entity_key)
+            else:
+                entity = query_results[0] if query_results else None
         else:
             logging.info('Received payload without matching id_property or filter_property, skipping this entity')
             entity = None

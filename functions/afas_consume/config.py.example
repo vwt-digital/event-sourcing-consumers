@@ -15,9 +15,10 @@ AFAS_DB_PROCESSOR = {
     "bank": {
         "entity_name": "Employees",
         "filter_property": "employee_nr",
+        "create_entity": True,
         "value_formatter": {
             "type": "prepend",
-            "value": "83613."
+            "value": "test."
         }
     }
 }

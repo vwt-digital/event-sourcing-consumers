@@ -21,6 +21,9 @@ The entity will be created when it does not exist.
 When `filter_property` is specified, the entity is retrieved based on a filter on the specified attribute, comparing to
 the value retrieved from the message received. Using `filter_property` only supports updated and won't create new entities.
 
+If you want the function to create a new entity when the filtered property is not existing, you can provide the 
+`create_entity` attribute. This ensures each message will result in an entity based on the `filter_property`.
+
 #### Value formatter
 When `value_formatter` is specified, the entity retrieved by the specified property can be formatted to you special needs.
 The following types are supported for each value:
@@ -62,6 +65,15 @@ AFAS_DB_PROCESSOR = {
             "type": "split",
             "value": ".",
             "index": -1
+        }
+    },
+    "bank": {
+        "entity_name": "Employees",
+        "filter_property": "employee_nr",
+        "create_entity": True,
+        "value_formatter": {
+            "type": "prepend",
+            "value": "test."
         }
     }
 }
