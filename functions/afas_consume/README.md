@@ -52,18 +52,21 @@ The fields needed for this format are:
 Within the function it is possible to ensure the entity is only updated when a specific set of rules are passed. This can
 be done by declaring the `property_rules` attribute on an item. The attribute is a list of different rule sets that function
 as an `OR` query; at least one of the rule sets must be positive, otherwise the entity won't be updated. A rule set will
-be positive if each rule within has a positive outcome.
+be positive if each rule within has a positive outcome when the conditions have met. These checks are only performed if 
+all conditions are met.
 
 A rule set can be defined as follow:
 ~~~json
 {
   "property_rules": [
     {
-      "rules": [
+      "conditions": [
         {
           "name": "old.test_field_1",
           "operator": "non_empty"
-        },
+        }
+      ],
+      "rules": [
         {
           "name": "new.test_field_2",
           "operator": "greater_than",
@@ -75,7 +78,7 @@ A rule set can be defined as follow:
 }
 ~~~
 
-The `rules` object consists of an endless list of rules where three fields per rule can be defined:
+Both the `conditions` and `rules` object consists of an endless list of rules where three fields per rule can be defined:
 
 ##### Name [required]
 The `name` field is the key attribute that points to the value the rule is about. To ensure the value points towards

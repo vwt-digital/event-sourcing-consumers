@@ -83,31 +83,45 @@ class RuleEngine(object):
     def check_validity(self, rules):
         outcome = []
         for rule_object in rules:
-            outcome.append(self.process_rule_object(rule_object))
+            if not rule_object.get('conditions') or rule_object.get('rules'):
+                raise ValueError("The current rule set is invalid, skipping this entity")
 
-        return False if False in outcome else True
+            conditions_outcome = self.get_rule_list_validity(rule_object['conditions'])
 
-    def process_rule_object(self, rule_object):
-        outcome = []
-        for rule in rule_object['rules']:
-            field = self.get_field(rule['name'])
-            value = rule.get('value')
+            if conditions_outcome:
+                outcome.append(self.get_rule_list_validity(rule_object['rules']))
+                continue
 
-            if value and value.startswith('field'):
-                value = self.get_field(rule['value'].split(':')[-1])
+            outcome.append(True)
 
-            outcome.append(self.process_rule_outcome(field, rule['operator'], value))
+        return all(outcome)
 
-        return True if True in outcome else False
+    def get_rule_list_validity(self, rules):
+        try:
+            outcome = []
+            for rule in rules:
+                field = self.get_field(rule['name'])
+                value = rule.get('value')
+
+                if value and value.startswith('field'):
+                    value = self.get_field(rule['value'].split(':')[-1])
+
+                rule_outcome = self.get_rule_outcome(field, rule['operator'], value)
+                outcome.append(rule_outcome)
+
+            return all(outcome)
+        except Exception:
+            return False
 
     def get_field(self, name):
         data = self.old_data if name.startswith('old') else self.new_data
         field = name.split('.')[-1]
+        value = data.get(field)
 
-        return data.get(field)
+        return value if value != 'null' else None
 
     @staticmethod
-    def process_rule_outcome(field, operator, value):
+    def get_rule_outcome(field, operator, value):
         # Value type checks
         if operator == 'non_empty' or operator == 'is_true':
             return True if field else False
