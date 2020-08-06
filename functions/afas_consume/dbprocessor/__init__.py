@@ -84,7 +84,7 @@ class RuleEngine(object):
     def check_validity(self, rules):
         outcome = []
         for rule_object in rules:
-            if not rule_object.get('conditions') or rule_object.get('rules'):
+            if not rule_object.get('conditions') or not rule_object.get('rules'):
                 raise ValueError("The current rule set is invalid, skipping this entity")
 
             conditions_outcome = self.get_rule_list_validity(rule_object['conditions'])
