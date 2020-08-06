@@ -1,7 +1,8 @@
-from google.cloud import datastore
-import config
 import os
+import config
 import logging
+
+from google.cloud import datastore
 
 
 class DBProcessor(object):

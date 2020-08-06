@@ -39,5 +39,3 @@ AFAS_DB_PROCESSOR = {
         }
     }
 }
-
-DOMAIN_VALIDATION_TOKEN = '<my domain validation token>'

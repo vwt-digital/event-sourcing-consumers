@@ -109,9 +109,6 @@ as two types: a static value or a dynamic value. The dynamic value can be specif
 on the format described at '[Name](#name-[required])'. To use this dynamic field the format `field:<dataset>.<field_name>` 
 can be used.
 
-### Domain Validation Token
-A `DOMAIN_VALIDATION_TOKEN` is used to validate the function as a verified domain to enable pub/sub pushConfig.
-
 ### Example
 ~~~python
 AFAS_DB_PROCESSOR = {
@@ -138,8 +135,6 @@ AFAS_DB_PROCESSOR = {
         }
     }
 }
-
-DOMAIN_VALIDATION_TOKEN = 'b2ba11bd-acaf-4128-92b8-ac8138a41cae'
 ~~~
 
 ## License
