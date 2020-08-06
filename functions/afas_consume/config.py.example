@@ -6,6 +6,23 @@ AFAS_DB_PROCESSOR = {
     "department": {
         "entity_name": "Departments",
         "id_property": "department_nr",
+        "property_rules": [
+            {
+                "conditions": [
+                    {
+                        "name": "old.test_field_1",
+                        "operator": "non_empty"
+                    }
+                ],
+                "rules": [
+                    {
+                        "name": "new.test_field_2",
+                        "operator": "greater_than",
+                        "value": "field:old.test_field_2"
+                    }
+                ]
+            }
+        ],
         "value_formatter": {
             "type": "split",
             "value": ".",
@@ -22,5 +39,3 @@ AFAS_DB_PROCESSOR = {
         }
     }
 }
-
-DOMAIN_VALIDATION_TOKEN = '<my domain validation token>'

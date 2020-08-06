@@ -1,35 +1,13 @@
-import inspect
 import logging
 import json
 import base64
-import os
-
-from google.auth.transport import requests
 
 from dbprocessor import DBProcessor
 
-import config
-
 parser = DBProcessor()
-verification_token = os.environ['PUBSUB_VERIFICATION_TOKEN']
-domain_token = config.DOMAIN_VALIDATION_TOKEN
 
 
 def topic_to_datastore(request):
-    if request.method == 'GET':
-        return '''
-             <html>
-                 <head>
-                     <meta name="google-site-verification" content="{token}" />
-                 </head>
-                 <body>
-                 </body>
-             </html>
-         '''.format(token=domain_token)
-
-    if request.args.get('token', '') != verification_token:
-        return 'Invalid request', 400
-
     # Extract data from request
     envelope = json.loads(request.data.decode('utf-8'))
     payload = base64.b64decode(envelope['message']['data'])
