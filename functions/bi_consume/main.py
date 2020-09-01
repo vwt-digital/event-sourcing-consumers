@@ -28,6 +28,9 @@ def handler(request):
         logging.error(f'Extracting of data failed: {e}')
         return 'Error', 500
 
+    if data.get('data'):
+        data = data['data']
+
     fs_write(collection, keys, ts, data)
 
     return 'OK', 204
