@@ -303,6 +303,9 @@ def send_to_cloudsql(subscription, payload, ts=None):
         engine, autoflush=False, autocommit=False)()
 
     try:
+        if isinstance(records, dict):
+            records = records['subject']
+
         if isinstance(records, list):
             records = records
         else:
@@ -348,12 +351,8 @@ def topic_to_cloudsql(request):
 
     try:
         # Extract subscription from subscription string
-        subject = config.TOPIC_SETTINGS.get('subject') if 'subject' in config.TOPIC_SETTINGS else None
         envelope = json.loads(request.data.decode('utf-8'))
-        if subject:
-            payload = base64.b64decode(envelope['message']['data'].get(subject))
-        else:
-            payload = base64.b64decode(envelope['message']['data'])
+        payload = base64.b64decode(envelope['message']['data'])
         subscription = envelope['subscription'].split('/')[-1]
     except Exception as e:
         logging.error('Extract of subscription failed')
