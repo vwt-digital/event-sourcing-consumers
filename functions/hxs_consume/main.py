@@ -303,6 +303,9 @@ def send_to_cloudsql(subscription, payload, ts=None):
         engine, autoflush=False, autocommit=False)()
 
     try:
+        if isinstance(records, dict):
+            records = records['subject']
+
         if isinstance(records, list):
             records = records
         else:
