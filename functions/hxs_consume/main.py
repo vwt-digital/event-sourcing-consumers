@@ -304,7 +304,9 @@ def send_to_cloudsql(subscription, payload, ts=None):
 
     try:
         if isinstance(records, dict):
-            records = records['subject']
+            for key, value in records.items():
+                if key != "gobits":
+                    records = value
 
         if isinstance(records, list):
             records = records
