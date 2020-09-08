@@ -16,7 +16,7 @@ def handler(request):
 
     try:
         envelope = json.loads(request.data.decode('utf-8'))
-        bytes = base64.b64decode(envelope['message']['data'])
+        bytes = base64.b64decode(envelope['message'])
         data = json.loads(bytes)
         subscription = envelope['subscription'].split('/')[-1]
         collection = config.firestore[subscription]['collection']
@@ -62,11 +62,11 @@ def fs_write(coll, keys, ts, data):
             logging.info(f'Document with id {unique_id} in collection {coll} already exists, checking document version')
             doc_dict = doc.to_dict()
             if record.get('updated') == doc_dict.get('updated'):
-                logging.info(f'Document version already exists, finishing')
+                logging.info('Document version already exists, finishing')
             elif record.get('updated') > doc_dict.get('updated'):
                 logging.info(f'Document version does not exist, creating new version {version_id}')
                 record['created'] = doc_dict['created']
                 ref.set(record)
                 ref.collection(f'_{coll}_versions').document(version_id).set(record)
             elif record.get('updated') < doc_dict.get('updated'):
-                logging.info(f'Document version is outdated, finishing')
+                logging.info('Document version is outdated, finishing')
