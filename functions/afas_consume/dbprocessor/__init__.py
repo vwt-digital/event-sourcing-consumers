@@ -8,10 +8,20 @@ from google.cloud import datastore
 class DBProcessor(object):
     def __init__(self):
         self.client = datastore.Client()
-        self.meta = config.AFAS_DB_PROCESSOR[os.environ.get('DATA_SELECTOR', 'Required parameter is missed')]
+        self.data_selector = os.environ.get('DATA_SELECTOR', 'Required environment variable DATA_SELECTOR is missing')
+        self.meta = config.AFAS_DB_PROCESSOR[self.data_selector]
         pass
 
     def process(self, payload):
+        if self.data_selector in payload and isinstance(payload[self.data_selector], dict):
+            self.process_single_object(payload[self.data_selector])
+        elif self.data_selector in payload and isinstance(payload[self.data_selector], list):
+            for payload_item in payload[self.data_selector]:
+                self.process_single_object(payload_item)
+        else:
+            self.process_single_object(payload)
+
+    def process_single_object(self, payload):
         if 'id_property' in self.meta and self.meta['id_property'] in payload:
             kind = self.meta['entity_name']
             key = self.value_formatter(payload.get(self.meta['id_property'], None))
