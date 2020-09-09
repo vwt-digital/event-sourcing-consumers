@@ -303,6 +303,11 @@ def send_to_cloudsql(subscription, payload, ts=None):
         engine, autoflush=False, autocommit=False)()
 
     try:
+        if isinstance(records, dict):
+            for key, value in records.items():
+                if key != "gobits":
+                    records = value
+
         if isinstance(records, list):
             records = records
         else:
