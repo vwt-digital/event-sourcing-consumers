@@ -46,7 +46,8 @@ class DBProcessor(object):
                 self.meta['filter_property'], '=', payload[self.meta['filter_property']])
             query_results = list(query.fetch(limit=1))
 
-            if self.meta.get('create_entity', False) and not query_results:
+            if self.meta.get('create_entity', False) and \
+                    not query_results and payload.get(self.meta['filter_property'], None):
                 entity_key = self.client.key(self.meta['entity_name'], payload[self.meta['filter_property']])
                 entity = datastore.Entity(key=entity_key)
             else:
