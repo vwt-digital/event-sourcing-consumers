@@ -1,0 +1,4 @@
+azure-storage-file-share==12.3.0
+dataclasses==0.6
+defusedxml==0.6.0
+google-cloud-secret-manager==2.1.0
