@@ -14,7 +14,8 @@ logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(l
 
 class Link2Processor(object):
     def __init__(self):
-        self.meta = config.MESSAGE_PROPERTIES[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
+        self.data_selector = os.environ.get('DATA_SELECTOR', 'Required parameter is missing')
+        self.meta = config.MESSAGE_PROPERTIES[self.data_selector]
         self.destshare = config.AZURE_DESTSHARE
         self.storageaccount = os.environ.get('AZURE_STORAGEACCOUNT', 'Required parameter is missing')
         self.project_id = os.environ.get('PROJECT_ID', 'Required parameter is missing')
@@ -50,7 +51,7 @@ class Link2Processor(object):
         if not sourcepath_field_msg:
             logging.error(f"The sourcepath field {sourcepath_field_msg} cannot be found in message")
 
-        destfilepath = f"ns-tcc_{sourcepath_field_msg}.xml"
+        destfilepath = f"{self.data_selector}_{sourcepath_field_msg}.xml"
 
         logging.info(f"Putting {destfilepath} on //{self.storageaccount}/{self.destshare}")
         share = ShareClient(account_url=f"https://{self.storageaccount}.file.core.windows.net/",
@@ -68,7 +69,7 @@ class Link2Processor(object):
         file_lease.release(timeout=5)
 
     def process(self, payload):
-        selector_data = payload[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
+        selector_data = payload[self.data_selector]
 
         if isinstance(selector_data, list):
             for data in selector_data:
