@@ -1,8 +1,7 @@
 import config
 import os
 import logging
-from defusedxml import ElementTree as defusedxml_ET
-import xml.etree.ElementTree as ET  # nosec
+import xmltodict
 
 from azure.storage.fileshare import ShareClient, ShareLeaseClient
 from azure.core.exceptions import HttpResponseError
@@ -26,18 +25,24 @@ class Link2Processor(object):
         self.sourcepath_field = config.SOURCEPATH_FIELD
         self.mapping_json = config.MAPPING
 
-    def make_xml(self, selector_data, file_name):
-        root = ET.Element(config.XML_ROOT)
-        subelement = ET.SubElement(root, config.XML_ROOT_SUBELEMENT)
+    def map_json(self, input_json):
+        output_json_subelement = {}
         for field in self.mapping_json:
             field_json = self.mapping_json[field]
-            field_map = selector_data.get(field_json)
+            field_map = input_json.get(field_json)
             if field_map == "None" or not field_map:
-                ET.SubElement(subelement, field).text = ""
+                row = {field: ""}
             else:
-                ET.SubElement(subelement, field).text = field_map
+                row = {field: field_map}
+            output_json_subelement.update(row)
+        output_json = {config.XML_ROOT: {config.XML_ROOT_SUBELEMENT: output_json_subelement}}
+        return output_json
 
-        return root
+    def make_xml(self, selector_data, file_name):
+        # First map the needed XML data to the message
+        mapped_json = self.map_json(selector_data)
+        # Then turn the json into an XML
+        return xmltodict.unparse(mapped_json)
 
     def msg_to_fileshare(self, msg):
         sourcepath_field_msg = msg.get(self.sourcepath_field)
@@ -57,11 +62,8 @@ class Link2Processor(object):
             file_on_share.create_file(size=0)
         file_lease = file_on_share.acquire_lease(timeout=5)
         sourcefile = self.make_xml(msg, destfilepath)
-        sourcefile_string = ET.tostring(sourcefile, encoding='utf8', method='xml')
-        safe_xml_tree = defusedxml_ET.fromstring(sourcefile_string)
-        safe_xml_tree_string = defusedxml_ET.tostring(safe_xml_tree)
         logging.info(f"Writing to //{self.storageaccount}/{self.destshare}/{destfilepath}")
-        file_on_share.upload_file(safe_xml_tree_string, lease=file_lease)
+        file_on_share.upload_file(sourcefile, lease=file_lease)
         file_lease.release(timeout=5)
 
     def process(self, payload):
