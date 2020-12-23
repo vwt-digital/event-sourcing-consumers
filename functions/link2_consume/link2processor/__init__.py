@@ -50,7 +50,7 @@ class Link2Processor(object):
         if not sourcepath_field_msg:
             logging.error(f"The sourcepath field {sourcepath_field_msg} cannot be found in message")
 
-        destfilepath = f"{sourcepath_field_msg}.xml"
+        destfilepath = f"ns-tcc_{sourcepath_field_msg}.xml"
 
         logging.info(f"Putting {destfilepath} on //{self.storageaccount}/{self.destshare}")
         share = ShareClient(account_url=f"https://{self.storageaccount}.file.core.windows.net/",
