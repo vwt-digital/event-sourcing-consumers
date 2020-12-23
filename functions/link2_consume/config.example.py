@@ -1,3 +1,9 @@
+MESSAGE_PROPERTIES = {
+    "main-message-field": {
+        "entity_name": "main-message-field"
+    }
+}
+
 # Name of the share storage where the file needs to go to
 AZURE_DESTSHARE = "azure-destshare"
 # Field in the published message from which the Azure sourcefilepath can be created

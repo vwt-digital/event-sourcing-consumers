@@ -14,6 +14,7 @@ logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(l
 
 class Link2Processor(object):
     def __init__(self):
+        self.meta = config.MESSAGE_PROPERTIES[os.environ.get('DATA_SELECTOR', 'Required parameter is missing')]
         self.destshare = config.AZURE_DESTSHARE
         self.storageaccount = os.environ.get('AZURE_STORAGEACCOUNT', 'Required parameter is missing')
         self.project_id = os.environ.get('PROJECT_ID', 'Required parameter is missing')
