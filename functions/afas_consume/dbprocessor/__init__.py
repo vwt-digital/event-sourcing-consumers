@@ -156,10 +156,10 @@ class RuleEngine(object):
             return True if field < value else False
 
         if operator == 'less_than_or_equal_to':
-            return True if field <= value else False
+            return True if field is None or field <= value else False
 
         if operator == 'greater_than':
-            return True if field > value else False
+            return True if field is None or field > value else False
 
         if operator == 'greater_than_or_equal_to':
-            return True if field >= value else False
+            return True if field is None or field >= value else False
